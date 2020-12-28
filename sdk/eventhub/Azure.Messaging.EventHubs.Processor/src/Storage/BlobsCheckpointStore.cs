@@ -65,7 +65,7 @@ namespace Azure.Messaging.EventHubs.Processor
         internal BlobEventStoreEventSource Logger { get; set; } = BlobEventStoreEventSource.Log;
 
         /// <summary>
-        ///   Initializes a new instance of the <see cref="BlobsCheckpointStore"/> class.
+        ///   Initializes a new instance of the <see cref="BlobsCheckpointStore" /> class.
         /// </summary>
         ///
         /// <param name="blobContainerClient">The client used to interact with the Azure Blob Storage service.</param>
@@ -89,7 +89,7 @@ namespace Azure.Messaging.EventHubs.Processor
         /// <param name="fullyQualifiedNamespace">The fully qualified Event Hubs namespace the ownership are associated with.  This is likely to be similar to <c>{yournamespace}.servicebus.windows.net</c>.</param>
         /// <param name="eventHubName">The name of the specific Event Hub the ownership are associated with, relative to the Event Hubs namespace that contains it.</param>
         /// <param name="consumerGroup">The name of the consumer group the ownership are associated with.</param>
-        /// <param name="cancellationToken">A <see cref="CancellationToken"/> instance to signal the request to cancel the operation.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> instance to signal the request to cancel the operation.</param>
         ///
         /// <returns>An enumerable containing all the existing ownership for the associated Event Hub and consumer group.</returns>
         ///
@@ -152,7 +152,7 @@ namespace Azure.Messaging.EventHubs.Processor
         /// </summary>
         ///
         /// <param name="partitionOwnership">An enumerable containing all the ownership to claim.</param>
-        /// <param name="cancellationToken">A <see cref="CancellationToken"/> instance to signal the request to cancel the operation.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> instance to signal the request to cancel the operation.</param>
         ///
         /// <returns>An enumerable containing the successfully claimed ownership.</returns>
         ///
@@ -266,7 +266,7 @@ namespace Azure.Messaging.EventHubs.Processor
         /// <param name="fullyQualifiedNamespace">The fully qualified Event Hubs namespace the ownership are associated with.  This is likely to be similar to <c>{yournamespace}.servicebus.windows.net</c>.</param>
         /// <param name="eventHubName">The name of the specific Event Hub the ownership are associated with, relative to the Event Hubs namespace that contains it.</param>
         /// <param name="consumerGroup">The name of the consumer group the ownership are associated with.</param>
-        /// <param name="cancellationToken">A <see cref="CancellationToken"/> instance to signal the request to cancel the operation.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> instance to signal the request to cancel the operation.</param>
         ///
         /// <returns>An enumerable containing all the existing checkpoints for the associated Event Hub and consumer group.</returns>
         ///
@@ -349,7 +349,7 @@ namespace Azure.Messaging.EventHubs.Processor
         ///
         /// <param name="checkpoint">The checkpoint containing the information to be stored.</param>
         /// <param name="eventData">The event to use as the basis for the checkpoint's starting position.</param>
-        /// <param name="cancellationToken">A <see cref="CancellationToken"/> instance to signal the request to cancel the operation.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> instance to signal the request to cancel the operation.</param>
         ///
         /// <returns>A task to be resolved on when the operation has completed.</returns>
         ///
@@ -369,15 +369,25 @@ namespace Azure.Messaging.EventHubs.Processor
                 { BlobMetadataKey.SequenceNumber, eventData.SequenceNumber.ToString(CultureInfo.InvariantCulture) }
             };
 
-            async Task updateCheckpointAsync(CancellationToken updateCheckpointToken)
-            {
-                using var blobContent = new MemoryStream(Array.Empty<byte>());
-                await blobClient.UploadAsync(blobContent, metadata: metadata, cancellationToken: updateCheckpointToken).ConfigureAwait(false);
-            };
-
             try
             {
-                await ApplyRetryPolicy(updateCheckpointAsync, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    // Assume the blob is present and attempt to set the metadata.
+
+                    await ApplyRetryPolicy(token => blobClient.SetMetadataAsync(metadata, cancellationToken: token), cancellationToken).ConfigureAwait(false);
+                }
+                catch (RequestFailedException ex) when ((ex.ErrorCode == BlobErrorCode.BlobNotFound) || (ex.ErrorCode == BlobErrorCode.ContainerNotFound))
+                {
+                    // If the blob wasn't present, fall-back to trying to create a new one.
+
+                    await ApplyRetryPolicy(async token =>
+                    {
+                        using var blobContent = new MemoryStream(Array.Empty<byte>());
+                        await blobClient.UploadAsync(blobContent, metadata: metadata, cancellationToken: token).ConfigureAwait(false);
+
+                    }, cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (RequestFailedException ex) when (ex.ErrorCode == BlobErrorCode.ContainerNotFound)
             {
@@ -400,7 +410,7 @@ namespace Azure.Messaging.EventHubs.Processor
         /// </summary>
         ///
         /// <param name="functionToRetry">The function to which the retry policy should be applied.</param>
-        /// <param name="cancellationToken">A <see cref="CancellationToken"/> instance to signal the request to cancel the operation.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> instance to signal the request to cancel the operation.</param>
         ///
         /// <returns>The value returned by the function to which the retry policy has been applied.</returns>
         ///
@@ -461,7 +471,7 @@ namespace Azure.Messaging.EventHubs.Processor
         /// </summary>
         ///
         /// <param name="functionToRetry">The function to which the retry policy should be applied.</param>
-        /// <param name="cancellationToken">A <see cref="CancellationToken"/> instance to signal the request to cancel the operation.</param>
+        /// <param name="cancellationToken">A <see cref="CancellationToken" /> instance to signal the request to cancel the operation.</param>
         ///
         /// <typeparam name="T">The type returned by the function to be executed.</typeparam>
         ///

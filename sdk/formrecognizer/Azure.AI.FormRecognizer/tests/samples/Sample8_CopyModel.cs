@@ -30,7 +30,7 @@ namespace Azure.AI.FormRecognizer.Samples
             #endregion
 
             // For the purpose of this sample, we are going to create a trained model to copy. Please note that
-            // if you already have a model, this is not neccesary.
+            // if you already have a model, this is not necessary.
             CustomFormModel model = await sourceClient.StartTrainingAsync(new Uri(trainingFileUrl), useTrainingLabels: false).WaitForCompletionAsync();
             string modelId = model.ModelId;
 
@@ -59,8 +59,8 @@ namespace Azure.AI.FormRecognizer.Samples
             //@@ string modelId = "<source_modelId>";
             CustomFormModelInfo newModel = await sourceClient.StartCopyModelAsync(modelId, targetCopyAuth).WaitForCompletionAsync();
 
-            Console.WriteLine($"Original modelID => {modelId}");
-            Console.WriteLine($"Copied modelID => {newModel.ModelId}");
+            Console.WriteLine($"Original model ID => {modelId}");
+            Console.WriteLine($"Copied model ID => {newModel.ModelId}");
             #endregion
         }
     }

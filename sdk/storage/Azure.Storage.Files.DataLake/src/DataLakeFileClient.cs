@@ -15,6 +15,7 @@ using Azure.Core;
 using Azure.Core.Pipeline;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Files.DataLake.Models;
+using Azure.Storage.Sas;
 using Metadata = System.Collections.Generic.IDictionary<string, string>;
 
 namespace Azure.Storage.Files.DataLake
@@ -27,8 +28,21 @@ namespace Azure.Storage.Files.DataLake
         /// <summary>
         /// Gets the maximum number of bytes that can be sent in a call
         /// to <see cref="UploadAsync(Stream, PathHttpHeaders, DataLakeRequestConditions, IProgress{long}, StorageTransferOptions, CancellationToken)"/>.
+        /// Supported value is now larger than <see cref="int.MaxValue"/>; please use
+        /// <see cref="MaxUploadLongBytes"/>.
         /// </summary>
-        public virtual int MaxUploadBytes => Constants.DataLake.MaxAppendBytes;
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public virtual int MaxUploadBytes => Version < DataLakeClientOptions.ServiceVersion.V2019_12_12
+            ? Constants.DataLake.Pre_2019_12_12_MaxAppendBytes
+            : int.MaxValue;  // value is larger than can be represented by an int
+
+        /// <summary>
+        /// Gets the maximum number of bytes that can be sent in a call
+        /// to <see cref="UploadAsync(Stream, PathHttpHeaders, DataLakeRequestConditions, IProgress{long}, StorageTransferOptions, CancellationToken)"/>.
+        /// </summary>
+        public virtual long MaxUploadLongBytes => Version < DataLakeClientOptions.ServiceVersion.V2019_12_12
+            ? Constants.DataLake.Pre_2019_12_12_MaxAppendBytes
+            : Constants.DataLake.MaxAppendBytes;
 
         #region ctors
         /// <summary>
@@ -48,7 +62,7 @@ namespace Azure.Storage.Files.DataLake
         /// file.
         /// </param>
         public DataLakeFileClient(Uri fileUri)
-            : this(fileUri, (HttpPipelinePolicy)null, null)
+            : this(fileUri, (HttpPipelinePolicy)null, null, null)
         {
         }
 
@@ -66,7 +80,7 @@ namespace Azure.Storage.Files.DataLake
         /// applied to every request.
         /// </param>
         public DataLakeFileClient(Uri fileUri, DataLakeClientOptions options)
-            : this(fileUri, (HttpPipelinePolicy)null, options)
+            : this(fileUri, (HttpPipelinePolicy)null, options, null)
         {
         }
 
@@ -82,7 +96,7 @@ namespace Azure.Storage.Files.DataLake
         /// The shared key credential used to sign requests.
         /// </param>
         public DataLakeFileClient(Uri fileUri, StorageSharedKeyCredential credential)
-            : this(fileUri, credential.AsPolicy(), null)
+            : this(fileUri, credential.AsPolicy(), null, credential)
         {
         }
 
@@ -103,7 +117,7 @@ namespace Azure.Storage.Files.DataLake
         /// applied to every request.
         /// </param>
         public DataLakeFileClient(Uri fileUri, StorageSharedKeyCredential credential, DataLakeClientOptions options)
-            : this(fileUri, credential.AsPolicy(), options)
+            : this(fileUri, credential.AsPolicy(), options, credential)
         {
         }
 
@@ -119,7 +133,7 @@ namespace Azure.Storage.Files.DataLake
         /// The token credential used to sign requests.
         /// </param>
         public DataLakeFileClient(Uri fileUri, TokenCredential credential)
-            : this(fileUri, credential.AsPolicy(), null)
+            : this(fileUri, credential.AsPolicy(), null, null)
         {
             Errors.VerifyHttpsTokenAuth(fileUri);
         }
@@ -141,7 +155,7 @@ namespace Azure.Storage.Files.DataLake
         /// applied to every request.
         /// </param>
         public DataLakeFileClient(Uri fileUri, TokenCredential credential, DataLakeClientOptions options)
-            : this(fileUri, credential.AsPolicy(), options)
+            : this(fileUri, credential.AsPolicy(), options, null)
         {
             Errors.VerifyHttpsTokenAuth(fileUri);
         }
@@ -163,8 +177,15 @@ namespace Azure.Storage.Files.DataLake
         /// policies for authentication, retries, etc., that are applied to
         /// every request.
         /// </param>
-        internal DataLakeFileClient(Uri fileUri, HttpPipelinePolicy authentication, DataLakeClientOptions options)
-            : base(fileUri, authentication, options)
+        /// <param name="storageSharedKeyCredential">
+        /// The shared key credential used to sign requests.
+        /// </param>
+        internal DataLakeFileClient(
+            Uri fileUri,
+            HttpPipelinePolicy authentication,
+            DataLakeClientOptions options,
+            StorageSharedKeyCredential storageSharedKeyCredential)
+            : base(fileUri, authentication, options, storageSharedKeyCredential)
         {
         }
 
@@ -528,7 +549,9 @@ namespace Azure.Storage.Files.DataLake
         /// deletion. The path is later deleted during
         /// garbage collection.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/delete" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/delete">
+        /// Delete Path</see>.
         /// </summary>
         /// <param name="conditions">
         /// Optional <see cref="DataLakeRequestConditions"/> to add conditions on
@@ -576,7 +599,9 @@ namespace Azure.Storage.Files.DataLake
         /// deletion. The path is later deleted during
         /// garbage collection.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/delete" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/delete">
+        /// Delete Path</see>.
         /// </summary>
         /// <param name="conditions">
         /// Optional <see cref="DataLakeRequestConditions"/> to add conditions on
@@ -627,7 +652,9 @@ namespace Azure.Storage.Files.DataLake
         /// for deletion, if the file exists. The file is later deleted during
         /// garbage collection.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/delete" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/delete">
+        /// Delete Path</see>.
         /// </summary>
         /// <param name="conditions">
         /// Optional <see cref="DataLakeRequestConditions"/> to add conditions on
@@ -675,7 +702,9 @@ namespace Azure.Storage.Files.DataLake
         /// for deletion, if the file exists. The file is later deleted during
         /// garbage collection.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/delete" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/delete">
+        /// Delete Path</see>.
         /// </summary>
         /// <param name="conditions">
         /// Optional <see cref="DataLakeRequestConditions"/> to add conditions on
@@ -862,7 +891,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="GetAccessControl"/> operation returns the
         /// access control data for a path.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/getproperties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/getproperties">
+        /// Get Properties</see>.
         /// </summary>
         /// <param name="userPrincipalName">
         /// Optional.Valid only when Hierarchical Namespace is enabled for the account.If "true",
@@ -919,7 +950,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="GetAccessControlAsync"/> operation returns the
         /// access control data for a path.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/getproperties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/getproperties">
+        /// Get Properties</see>.
         /// </summary>
         /// <param name="userPrincipalName">
         /// Optional.Valid only when Hierarchical Namespace is enabled for the account.If "true",
@@ -979,7 +1012,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="SetAccessControlList"/> operation sets the
         /// Access Control on a path
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update">
+        /// Update Path</see>.
         /// </summary>
         /// <param name="accessControlList">
         /// The POSIX access control list for the file or directory.
@@ -1041,7 +1076,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="SetAccessControlListAsync"/> operation sets the
         /// Access Control on a path
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update">
+        /// Update Path</see>.
         /// </summary>
         /// <param name="accessControlList">
         /// The POSIX access control list for the file or directory.
@@ -1106,7 +1143,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="SetPermissions"/> operation sets the
         /// file permissions on a path.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update">
+        /// Update Path</see>.
         /// </summary>
         /// <param name="permissions">
         ///  The POSIX access permissions for the file owner, the file owning group, and others.
@@ -1169,7 +1208,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="SetPermissionsAsync"/> operation sets the
         /// file permissions on a path.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update">
+        /// Update Path</see>.
         /// </summary>
         /// <param name="permissions">
         ///  The POSIX access permissions for the file owner, the file owning group, and others.
@@ -1236,7 +1277,9 @@ namespace Azure.Storage.Files.DataLake
         /// properties for the path. It does not return the content of the
         /// path.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-properties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-properties">
+        /// Get Properties</see>.
         /// </summary>
         /// <param name="conditions">
         /// Optional <see cref="DataLakeRequestConditions"/> to add
@@ -1288,7 +1331,9 @@ namespace Azure.Storage.Files.DataLake
         /// properties for the path. It does not return the content of the
         /// path.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-properties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-properties">
+        /// Get Properties</see>.
         /// </summary>
         /// <param name="conditions">
         /// Optional <see cref="DataLakeRequestConditions"/> to add
@@ -1338,10 +1383,13 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="SetHttpHeaders"/> operation sets system
         /// properties on the path.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-properties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-properties">
+        /// Set Blob Properties</see>.
         /// </summary>
         /// <param name="httpHeaders">
-        /// Optional. The standard HTTP header system properties to set.  If not specified, existing values will be cleared.
+        /// Optional. The standard HTTP header system properties to set.
+        /// If not specified, existing values will be cleared.
         /// </param>
         /// <param name="conditions">
         /// Optional <see cref="DataLakeRequestConditions"/> to add conditions on
@@ -1390,10 +1438,13 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="SetHttpHeadersAsync"/> operation sets system
         /// properties on the PATH.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-properties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-properties">
+        /// Set Blob Properties</see>.
         /// </summary>
         /// <param name="httpHeaders">
-        /// Optional. The standard HTTP header system properties to set.  If not specified, existing values will be cleared.
+        /// Optional. The standard HTTP header system properties to set.
+        /// If not specified, existing values will be cleared.
         /// </param>
         /// <param name="conditions">
         /// Optional <see cref="DataLakeRequestConditions"/> to add conditions on
@@ -1445,7 +1496,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="SetMetadata"/> operation sets user-defined
         /// metadata for the specified path as one or more name-value pairs.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-metadata" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-metadata">
+        /// Set Metadata</see>.
         /// </summary>
         /// <param name="metadata">
         /// Custom metadata to set for this path.
@@ -1497,7 +1550,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="SetMetadataAsync"/> operation sets user-defined
         /// metadata for the specified path as one or more name-value pairs.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-metadata" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-metadata">
+        /// Set Metadata</see>.
         /// </summary>
         /// <param name="metadata">
         /// Custom metadata to set for this path.
@@ -1549,11 +1604,14 @@ namespace Azure.Storage.Files.DataLake
 
         #region Append Data
         /// <summary>
-        /// The <see cref="Append"/> operation uploads data to be appended to a file.  Data can only be appended to a file.
+        /// The <see cref="Append"/> operation uploads data to be appended to a file.
+        /// Data can only be appended to a file.
         /// To apply perviously uploaded data to a file, call Flush Data.
         /// Append is currently limited to 4000 MB per request.  To upload large files all at once, consider using <see cref="Upload(Stream)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update">
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -1630,7 +1688,9 @@ namespace Azure.Storage.Files.DataLake
         /// To apply perviously uploaded data to a file, call Flush Data.
         /// Append is currently limited to 4000 MB per request.  To upload large files all at once, consider using <see cref="UploadAsync(Stream)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update">
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -1706,7 +1766,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="AppendInternal"/> operation uploads data to be appended to a file.  Data can only be appended to a file.
         /// To apply perviously uploaded data to a file, call Flush Data.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update">
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -1766,6 +1828,8 @@ namespace Azure.Storage.Files.DataLake
                     $"{nameof(leaseId)}: {leaseId}\n");
                 try
                 {
+                    Errors.VerifyStreamPosition(content, nameof(content));
+
                     Response<PathAppendDataResult> response = await DataLakeRestClient.Path.AppendDataAsync(
                         clientDiagnostics: ClientDiagnostics,
                         pipeline: Pipeline,
@@ -1773,7 +1837,7 @@ namespace Azure.Storage.Files.DataLake
                         body: content,
                         version: Version.ToVersionString(),
                         position: offset,
-                        contentLength: content?.Length ?? 0,
+                        contentLength: content?.Length - content?.Position ?? 0,
                         transactionalContentHash: contentHash,
                         leaseId: leaseId,
                         async: async,
@@ -1986,7 +2050,7 @@ namespace Azure.Storage.Files.DataLake
         /// flush operation completes successfully, the service raises a file change notification with a property indicating that
         /// this is the final update (the file stream has been closed). If "false" a change notification is raised indicating the
         /// file has changed. The default is false. This query parameter is set to true by the Hadoop ABFS driver to indicate that
-        /// the file stream has been closed."
+        /// the file stream has been closed.
         /// </param>
         /// <param name="httpHeaders">
         /// Optional standard HTTP header properties that can be set for the file.
@@ -2078,7 +2142,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="Read()"/> operation downloads a file from
         /// the service, including its metadata and properties.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
         /// </summary>
         /// <returns>
         /// A <see cref="Response{FileDownloadInfo}"/> describing the
@@ -2118,7 +2184,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="ReadAsync()"/> operation downloads a file from
         /// the service, including its metadata and properties.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
         /// </summary>
         /// <returns>
         /// A <see cref="Response{FileDownloadInfo}"/> describing the
@@ -2159,7 +2227,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="Read(CancellationToken)"/> operation downloads a file from
         /// the service, including its metadata and properties.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -2204,7 +2274,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="ReadAsync(CancellationToken)"/> operation downloads a file from
         /// the service, including its metadata and properties.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -2251,7 +2323,9 @@ namespace Azure.Storage.Files.DataLake
         /// operation downloads a file from the service, including its metadata
         /// and properties.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
         /// </summary>
         /// <param name="range">
         /// If provided, only donwload the bytes of the file in the specified
@@ -2320,7 +2394,9 @@ namespace Azure.Storage.Files.DataLake
         /// operation downloads a file from the service, including its metadata
         /// and properties.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob">
+        /// Get Blob</see>.
         /// </summary>
         /// <param name="range">
         /// If provided, only donwload the bytes of the file in the specified
@@ -2637,7 +2713,9 @@ namespace Azure.Storage.Files.DataLake
         /// unless otherwise specified in the <see cref="DataLakeFileUploadOptions.Conditions"/> or alternatively use
         /// <see cref="Upload(Stream)"/>, <see cref="Upload(Stream, bool, CancellationToken)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -2728,7 +2806,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="Upload(Stream, bool, CancellationToken)"/>
         /// operation creates and uploads content to a file.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -2753,7 +2833,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="Upload(Stream, bool, CancellationToken)"/>
         /// operation creates and uploads content to a file.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -2790,7 +2872,9 @@ namespace Azure.Storage.Files.DataLake
         /// unless otherwise specified in the <see cref="DataLakeFileUploadOptions.Conditions"/> or alternatively use
         /// <see cref="UploadAsync(Stream)"/>, <see cref="UploadAsync(Stream, bool, CancellationToken)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -2827,7 +2911,9 @@ namespace Azure.Storage.Files.DataLake
         /// unless otherwise specified in the <see cref="DataLakeRequestConditions"/> or alternatively use
         /// <see cref="UploadAsync(Stream)"/>, <see cref="UploadAsync(Stream, bool, CancellationToken)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -2882,7 +2968,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="UploadAsync(Stream, bool, CancellationToken)"/>
         /// operation creates and uploads content to a file.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -2908,7 +2996,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="UploadAsync(Stream, bool, CancellationToken)"/>
         /// operation creates and uploads content to a file.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="content">
         /// A <see cref="Stream"/> containing the content to upload.
@@ -2945,7 +3035,9 @@ namespace Azure.Storage.Files.DataLake
         /// unless otherwise specified in the <see cref="DataLakeFileUploadOptions.Conditions"/> or alternatively use
         /// <see cref="Upload(Stream)"/>, <see cref="Upload(Stream, bool, CancellationToken)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="path">
         /// A file path containing the content to upload.
@@ -2983,7 +3075,9 @@ namespace Azure.Storage.Files.DataLake
         /// unless otherwise specified in the <see cref="DataLakeRequestConditions"/> or alternatively use
         /// <see cref="Upload(Stream)"/>, <see cref="Upload(Stream, bool, CancellationToken)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="path">
         /// A file path containing the content to upload.
@@ -3024,7 +3118,7 @@ namespace Azure.Storage.Files.DataLake
             StorageTransferOptions transferOptions = default,
             CancellationToken cancellationToken = default)
         {
-            using (FileStream stream = new FileStream(path, FileMode.Open))
+            using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
                 return StagedUploadInternal(
                     stream,
@@ -3045,7 +3139,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="Upload(Stream, bool, CancellationToken)"/>
         /// operation creates and uploads content to a file.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="path">
         /// A file path containing the content to upload.
@@ -3071,7 +3167,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="Upload(Stream, bool, CancellationToken)"/>
         /// operation creates and uploads content to a file.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="path">
         /// A file path containing the content to upload.
@@ -3108,7 +3206,9 @@ namespace Azure.Storage.Files.DataLake
         /// unless otherwise specified in the <see cref="DataLakeFileUploadOptions.Conditions"/> or alternatively use
         /// <see cref="UploadAsync(Stream)"/>, <see cref="UploadAsync(Stream, bool, CancellationToken)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="path">
         /// A file path containing the content to upload.
@@ -3134,7 +3234,7 @@ namespace Azure.Storage.Files.DataLake
             DataLakeFileUploadOptions options,
             CancellationToken cancellationToken = default)
         {
-            using (FileStream stream = new FileStream(path, FileMode.Open))
+            using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
                 return await StagedUploadInternal(
                     stream,
@@ -3151,7 +3251,9 @@ namespace Azure.Storage.Files.DataLake
         /// unless otherwise specified in the <see cref="DataLakeRequestConditions"/> or alternatively use
         /// <see cref="Upload(Stream)"/>, <see cref="Upload(Stream, bool, CancellationToken)"/>.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="path">
         /// A file path containing the content to upload.
@@ -3206,7 +3308,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="UploadAsync(Stream, bool, CancellationToken)"/>
         /// operation creates and uploads content to a file.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="path">
         /// A file path containing the content to upload.
@@ -3232,7 +3336,9 @@ namespace Azure.Storage.Files.DataLake
         /// The <see cref="UploadAsync(Stream, bool, CancellationToken)"/>
         /// operation creates and uploads content to a file.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update" >
+        /// Update Path</see>.
         /// </summary>
         /// <param name="path">
         /// A file path containing the content to upload.
@@ -3340,7 +3446,7 @@ namespace Azure.Storage.Files.DataLake
             bool async = true,
             CancellationToken cancellationToken = default)
         {
-            using (FileStream stream = new FileStream(path, FileMode.Open))
+            using (FileStream stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
                 return await StagedUploadInternal(
                     stream,
@@ -3370,7 +3476,7 @@ namespace Azure.Storage.Files.DataLake
         /// A <see cref="RequestFailedException"/> will be thrown if
         /// a failure occurs.
         /// </remarks>
-        internal virtual Response<PathInfo> ScheduleDeletion(
+        public virtual Response<PathInfo> ScheduleDeletion(
             DataLakeFileScheduleDeletionOptions options,
             CancellationToken cancellationToken = default)
             => ScheduleDeletionInternal(
@@ -3396,7 +3502,7 @@ namespace Azure.Storage.Files.DataLake
         /// A <see cref="RequestFailedException"/> will be thrown if
         /// a failure occurs.
         /// </remarks>
-        internal virtual async Task<Response<PathInfo>> ScheduleDeletionAsync(
+        public virtual async Task<Response<PathInfo>> ScheduleDeletionAsync(
             DataLakeFileScheduleDeletionOptions options,
             CancellationToken cancellationToken = default)
             => await ScheduleDeletionInternal(
@@ -3607,7 +3713,453 @@ namespace Azure.Storage.Files.DataLake
         }
         #endregion Query
 
-        #region PartitionedUplaoder
+        #region OpenRead
+        /// <summary>
+        /// Opens a stream for reading from the file.  The stream will only download
+        /// the file as the stream is read from.
+        /// </summary>
+        /// <param name="options">
+        /// Optional parameters.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// Returns a stream that will download the file as the stream
+        /// is read from.
+        /// </returns>
+#pragma warning disable AZC0015 // Unexpected client method return type.
+        public virtual Stream OpenRead(
+#pragma warning restore AZC0015 // Unexpected client method return type.
+            DataLakeOpenReadOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            DiagnosticScope scope = ClientDiagnostics.CreateScope($"{nameof(DataLakeFileClient)}.{nameof(OpenRead)}");
+            try
+            {
+                scope.Start();
+                return _blockBlobClient.OpenRead(
+                    options.ToBlobOpenReadOptions(),
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                scope.Failed(ex);
+                throw;
+            }
+            finally
+            {
+                scope.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Opens a stream for reading from the file.  The stream will only download
+        /// the file as the stream is read from.
+        /// </summary>
+        /// <param name="options">
+        /// Optional parameters.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// Returns a stream that will download the file as the stream
+        /// is read from.
+        /// </returns>
+#pragma warning disable AZC0015 // Unexpected client method return type.
+        public virtual async Task<Stream> OpenReadAsync(
+#pragma warning restore AZC0015 // Unexpected client method return type.
+            DataLakeOpenReadOptions options,
+            CancellationToken cancellationToken = default)
+        {
+            DiagnosticScope scope = ClientDiagnostics.CreateScope($"{nameof(DataLakeFileClient)}.{nameof(OpenRead)}");
+            try
+            {
+                scope.Start();
+                return await _blockBlobClient.OpenReadAsync(
+                options.ToBlobOpenReadOptions(),
+                cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                scope.Failed(ex);
+                throw;
+            }
+            finally
+            {
+                scope.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Opens a stream for reading from the file.  The stream will only download
+        /// the file as the stream is read from.
+        /// </summary>
+        /// <param name="position">
+        /// The position within the file to begin the stream.
+        /// Defaults to the beginning of the file.
+        /// </param>
+        /// <param name="bufferSize">
+        /// The buffer size to use when the stream downloads parts
+        /// of the file.  Defaults to 1 MB.
+        /// </param>
+        /// <param name="conditions">
+        /// Optional <see cref="DataLakeRequestConditions"/> to add conditions on
+        /// the download of this file.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// Returns a stream that will download the file as the stream
+        /// is read from.
+        /// </returns>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+#pragma warning disable AZC0015 // Unexpected client method return type.
+        public virtual Stream OpenRead(
+#pragma warning restore AZC0015 // Unexpected client method return type.
+            long position = 0,
+            int? bufferSize = default,
+            DataLakeRequestConditions conditions = default,
+            CancellationToken cancellationToken = default)
+        {
+            DiagnosticScope scope = ClientDiagnostics.CreateScope($"{nameof(DataLakeFileClient)}.{nameof(OpenRead)}");
+            try
+            {
+                scope.Start();
+                return _blockBlobClient.OpenRead(
+                    position,
+                    bufferSize,
+                    conditions.ToBlobRequestConditions(),
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                scope.Failed(ex);
+                throw;
+            }
+            finally
+            {
+                scope.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Opens a stream for reading from the file.  The stream will only download
+        /// the file as the stream is read from.
+        /// </summary>
+        /// <param name="allowfileModifications">
+        /// If true, you can continue streaming a blob even if it has been modified.
+        /// </param>
+        /// <param name="position">
+        /// The position within the file to begin the stream.
+        /// Defaults to the beginning of the file.
+        /// </param>
+        /// <param name="bufferSize">
+        /// The buffer size to use when the stream downloads parts
+        /// of the file.  Defaults to 1 MB.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// Returns a stream that will download the file as the stream
+        /// is read from.
+        /// </returns>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+#pragma warning disable AZC0015 // Unexpected client method return type.
+        public virtual Stream OpenRead(
+#pragma warning restore AZC0015 // Unexpected client method return type.
+            bool allowfileModifications,
+            long position = 0,
+            int? bufferSize = default,
+            CancellationToken cancellationToken = default)
+                => allowfileModifications ? OpenRead(position, bufferSize, new DataLakeRequestConditions(), cancellationToken)
+                : OpenRead(position, bufferSize, null, cancellationToken);
+
+        /// <summary>
+        /// Opens a stream for reading from the file.  The stream will only download
+        /// the file as the stream is read from.
+        /// </summary>
+        /// <param name="position">
+        /// The position within the file to begin the stream.
+        /// Defaults to the beginning of the file.
+        /// </param>
+        /// <param name="bufferSize">
+        /// The buffer size to use when the stream downloads parts
+        /// of the file.  Defaults to 1 MB.
+        /// </param>
+        /// <param name="conditions">
+        /// Optional <see cref="DataLakeRequestConditions"/> to add conditions on
+        /// the download of the file.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// Returns a stream that will download the file as the stream
+        /// is read from.
+        /// </returns>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+#pragma warning disable AZC0015 // Unexpected client method return type.
+        public virtual async Task<Stream> OpenReadAsync(
+#pragma warning restore AZC0015 // Unexpected client method return type.
+            long position = 0,
+            int? bufferSize = default,
+            DataLakeRequestConditions conditions = default,
+            CancellationToken cancellationToken = default)
+        {
+            DiagnosticScope scope = ClientDiagnostics.CreateScope($"{nameof(DataLakeFileClient)}.{nameof(OpenRead)}");
+            try
+            {
+                scope.Start();
+                return await _blockBlobClient.OpenReadAsync(
+                position,
+                bufferSize,
+                conditions?.ToBlobRequestConditions(),
+                cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                scope.Failed(ex);
+                throw;
+            }
+            finally
+            {
+                scope.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Opens a stream for reading from the file.  The stream will only download
+        /// the file as the stream is read from.
+        /// </summary>
+        /// <param name="allowfileModifications">
+        /// If true, you can continue streaming a blob even if it has been modified.
+        /// </param>
+        /// <param name="position">
+        /// The position within the file to begin the stream.
+        /// Defaults to the beginning of the file.
+        /// </param>
+        /// <param name="bufferSize">
+        /// The buffer size to use when the stream downloads parts
+        /// of the file.  Defaults to 1 MB.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// Returns a stream that will download the file as the stream
+        /// is read from.
+        /// </returns>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+#pragma warning disable AZC0015 // Unexpected client method return type.
+        public virtual async Task<Stream> OpenReadAsync(
+#pragma warning restore AZC0015 // Unexpected client method return type.
+            bool allowfileModifications,
+            long position = 0,
+            int? bufferSize = default,
+            CancellationToken cancellationToken = default)
+                => await (allowfileModifications ? OpenReadAsync(position, bufferSize, new DataLakeRequestConditions(), cancellationToken)
+                : OpenReadAsync(position, bufferSize, null, cancellationToken)).ConfigureAwait(false);
+        #endregion OpenRead
+
+        #region OpenWrite
+        /// <summary>
+        /// Opens a stream for writing to the file.
+        /// </summary>
+        /// <param name="overwrite">
+        /// Whether an existing blob should be deleted and recreated.
+        /// </param>
+        /// <param name="options">
+        /// Optional parameters.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A stream to write to the file.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+#pragma warning disable AZC0015 // Unexpected client method return type.
+        public virtual Stream OpenWrite(
+#pragma warning restore AZC0015 // Unexpected client method return type.
+            bool overwrite,
+            DataLakeFileOpenWriteOptions options = default,
+            CancellationToken cancellationToken = default)
+            => OpenWriteInternal(
+                overwrite: overwrite,
+                options: options,
+                async: false,
+                cancellationToken: cancellationToken)
+                .EnsureCompleted();
+
+        /// <summary>
+        /// Opens a stream for writing to the file..
+        /// </summary>
+        /// <param name="overwrite">
+        /// Whether an existing blob should be deleted and recreated.
+        /// </param>
+        /// <param name="options">
+        /// Optional parameters.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A stream to write to the file.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+#pragma warning disable AZC0015 // Unexpected client method return type.
+        public virtual async Task<Stream> OpenWriteAsync(
+#pragma warning restore AZC0015 // Unexpected client method return type.
+            bool overwrite,
+            DataLakeFileOpenWriteOptions options = default,
+            CancellationToken cancellationToken = default)
+            => await OpenWriteInternal(
+                overwrite: overwrite,
+                options: options,
+                async: true,
+                cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+        /// <summary>
+        /// Opens a stream for writing to the file.
+        /// </summary>
+        /// <param name="overwrite">
+        /// Whether an existing blob should be deleted and recreated.
+        /// </param>
+        /// <param name="options">
+        /// Optional parameters.
+        /// </param>
+        /// <param name="async">
+        /// Whether to invoke the operation asynchronously.
+        /// </param>
+        /// <param name="cancellationToken">
+        /// Optional <see cref="CancellationToken"/> to propagate
+        /// notifications that the operation should be cancelled.
+        /// </param>
+        /// <returns>
+        /// A stream to write to the file.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        private async Task<Stream> OpenWriteInternal(
+            bool overwrite,
+            DataLakeFileOpenWriteOptions options,
+            bool async,
+            CancellationToken cancellationToken)
+        {
+            DiagnosticScope scope = ClientDiagnostics.CreateScope($"{nameof(DataLakeFileClient)}.{nameof(OpenWrite)}");
+
+            try
+            {
+                scope.Start();
+
+                long position;
+                ETag? eTag;
+
+                if (overwrite)
+                {
+                    Response<PathInfo> createResponse = await CreateInternal(
+                        resourceType: PathResourceType.File,
+                        httpHeaders: default,
+                        metadata: default,
+                        permissions: default,
+                        umask: default,
+                        conditions: options?.OpenConditions,
+                        async: async,
+                        cancellationToken: cancellationToken)
+                        .ConfigureAwait(false);
+
+                    position = 0;
+                    eTag = createResponse.Value.ETag;
+                }
+                else
+                {
+                    try
+                    {
+                        Response<PathProperties> propertiesResponse;
+
+                        if (async)
+                        {
+                            propertiesResponse = await GetPropertiesAsync(
+                                conditions: options?.OpenConditions,
+                                cancellationToken: cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            propertiesResponse = GetProperties(
+                                conditions: options?.OpenConditions,
+                                cancellationToken: cancellationToken);
+                        }
+
+                        position = propertiesResponse.Value.ContentLength;
+                        eTag = propertiesResponse.Value.ETag;
+                    }
+                    catch (RequestFailedException ex)
+                    when (ex.ErrorCode == BlobErrorCode.BlobNotFound)
+                    {
+                        Response<PathInfo> createResponse = await CreateInternal(
+                            resourceType: PathResourceType.File,
+                            httpHeaders: default,
+                            metadata: default,
+                            permissions: default,
+                            umask: default,
+                            conditions: options?.OpenConditions,
+                            async: async,
+                            cancellationToken: cancellationToken)
+                            .ConfigureAwait(false);
+
+                        position = 0;
+                        eTag = createResponse.Value.ETag;
+                    }
+                }
+
+                DataLakeRequestConditions conditions = new DataLakeRequestConditions
+                {
+                    IfMatch = eTag,
+                    LeaseId = options?.OpenConditions?.LeaseId
+                };
+
+                return new DataLakeFileWriteStream(
+                    fileClient: this,
+                    bufferSize: options?.BufferSize ?? Constants.DefaultBufferSize,
+                    position: position,
+                    conditions: conditions,
+                    progressHandler: options?.ProgressHandler,
+                    closeEvent: options?.Close);
+            }
+            catch (Exception ex)
+            {
+                scope.Failed(ex);
+                throw;
+            }
+            finally
+            {
+                scope.Dispose();
+            }
+        }
+        #endregion OpenWrite
+
+        #region PartitionedUploader
         internal PartitionedUploader<DataLakeFileUploadOptions, PathInfo> GetPartitionedUploader(
             StorageTransferOptions transferOptions,
             ArrayPool<byte> arrayPool = null,
@@ -3638,6 +4190,8 @@ namespace Azure.Storage.Files.DataLake
                     if (args?.Conditions != null)
                         args.Conditions = new DataLakeRequestConditions { LeaseId = args.Conditions.LeaseId };
 
+                    long newPosition = stream.Length - stream.Position;
+
                     // Append data
                     await client.AppendInternal(
                         stream,
@@ -3650,9 +4204,9 @@ namespace Azure.Storage.Files.DataLake
 
                     // Flush data
                     return await client.FlushInternal(
-                        position: stream.Length,
+                        position: newPosition,
                         retainUncommittedData: default,
-                        close: default,
+                        close: args.Close,
                         args.HttpHeaders,
                         args.Conditions,
                         async,
@@ -3664,7 +4218,7 @@ namespace Azure.Storage.Files.DataLake
                         stream,
                         offset,
                         contentHash: default,
-                        args.Conditions.LeaseId,
+                        args?.Conditions?.LeaseId,
                         progressHandler,
                         async,
                         cancellationToken).ConfigureAwait(false),
@@ -3679,7 +4233,7 @@ namespace Azure.Storage.Files.DataLake
                     return await client.FlushInternal(
                         offset + size,
                         retainUncommittedData: default,
-                        close: default,
+                        close: args.Close,
                         httpHeaders: args.HttpHeaders,
                         conditions: args.Conditions,
                         async,

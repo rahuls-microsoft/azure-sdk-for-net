@@ -28,7 +28,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <param name="pipeline"> The HTTP pipeline for sending and receiving REST requests and responses. </param>
         /// <param name="endpoint"> The workspace development endpoint, for example https://myworkspace.dev.azuresynapse.net. </param>
         /// <param name="apiVersion"> Api Version. </param>
-        /// <exception cref="ArgumentNullException"> This occurs when one of the required arguments is null. </exception>
+        /// <exception cref="ArgumentNullException"> <paramref name="endpoint"/> or <paramref name="apiVersion"/> is null. </exception>
         public NotebookRestClient(ClientDiagnostics clientDiagnostics, HttpPipeline pipeline, string endpoint, string apiVersion = "2019-06-01-preview")
         {
             if (endpoint == null)
@@ -56,6 +56,7 @@ namespace Azure.Analytics.Synapse.Artifacts
             uri.AppendPath("/notebooks", false);
             uri.AppendQuery("api-version", apiVersion, true);
             request.Uri = uri;
+            request.Headers.Add("Accept", "application/json");
             return message;
         }
 
@@ -71,14 +72,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookListResponse value = default;
                         using var document = await JsonDocument.ParseAsync(message.Response.ContentStream, default, cancellationToken).ConfigureAwait(false);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
-                        }
+                        value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 default:
@@ -98,14 +92,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookListResponse value = default;
                         using var document = JsonDocument.Parse(message.Response.ContentStream);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
-                        }
+                        value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 default:
@@ -123,6 +110,7 @@ namespace Azure.Analytics.Synapse.Artifacts
             uri.AppendPath("/notebooks/summary", false);
             uri.AppendQuery("api-version", apiVersion, true);
             request.Uri = uri;
+            request.Headers.Add("Accept", "application/json");
             return message;
         }
 
@@ -138,14 +126,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookListResponse value = default;
                         using var document = await JsonDocument.ParseAsync(message.Response.ContentStream, default, cancellationToken).ConfigureAwait(false);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
-                        }
+                        value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 default:
@@ -165,14 +146,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookListResponse value = default;
                         using var document = JsonDocument.Parse(message.Response.ContentStream);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
-                        }
+                        value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 default:
@@ -196,6 +170,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                 request.Headers.Add("If-Match", ifMatch);
             }
             request.Headers.Add("Content-Type", "application/json");
+            request.Headers.Add("Accept", "application/json");
             var content = new Utf8JsonRequestContent();
             content.JsonWriter.WriteObjectValue(notebook);
             request.Content = content;
@@ -207,7 +182,8 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <param name="notebook"> Note book resource definition. </param>
         /// <param name="ifMatch"> ETag of the Note book entity.  Should only be specified for update, for which it should match existing entity or can be * for unconditional update. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
-        public async Task<Response<NotebookResource>> CreateOrUpdateNotebookAsync(string notebookName, NotebookResource notebook, string ifMatch = null, CancellationToken cancellationToken = default)
+        /// <exception cref="ArgumentNullException"> <paramref name="notebookName"/> or <paramref name="notebook"/> is null. </exception>
+        public async Task<Response> CreateOrUpdateNotebookAsync(string notebookName, NotebookResource notebook, string ifMatch = null, CancellationToken cancellationToken = default)
         {
             if (notebookName == null)
             {
@@ -223,19 +199,8 @@ namespace Azure.Analytics.Synapse.Artifacts
             switch (message.Response.Status)
             {
                 case 200:
-                    {
-                        NotebookResource value = default;
-                        using var document = await JsonDocument.ParseAsync(message.Response.ContentStream, default, cancellationToken).ConfigureAwait(false);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookResource.DeserializeNotebookResource(document.RootElement);
-                        }
-                        return Response.FromValue(value, message.Response);
-                    }
+                case 202:
+                    return message.Response;
                 default:
                     throw await _clientDiagnostics.CreateRequestFailedExceptionAsync(message.Response).ConfigureAwait(false);
             }
@@ -246,7 +211,8 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <param name="notebook"> Note book resource definition. </param>
         /// <param name="ifMatch"> ETag of the Note book entity.  Should only be specified for update, for which it should match existing entity or can be * for unconditional update. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
-        public Response<NotebookResource> CreateOrUpdateNotebook(string notebookName, NotebookResource notebook, string ifMatch = null, CancellationToken cancellationToken = default)
+        /// <exception cref="ArgumentNullException"> <paramref name="notebookName"/> or <paramref name="notebook"/> is null. </exception>
+        public Response CreateOrUpdateNotebook(string notebookName, NotebookResource notebook, string ifMatch = null, CancellationToken cancellationToken = default)
         {
             if (notebookName == null)
             {
@@ -262,19 +228,8 @@ namespace Azure.Analytics.Synapse.Artifacts
             switch (message.Response.Status)
             {
                 case 200:
-                    {
-                        NotebookResource value = default;
-                        using var document = JsonDocument.Parse(message.Response.ContentStream);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookResource.DeserializeNotebookResource(document.RootElement);
-                        }
-                        return Response.FromValue(value, message.Response);
-                    }
+                case 202:
+                    return message.Response;
                 default:
                     throw _clientDiagnostics.CreateRequestFailedException(message.Response);
             }
@@ -295,6 +250,7 @@ namespace Azure.Analytics.Synapse.Artifacts
             {
                 request.Headers.Add("If-None-Match", ifNoneMatch);
             }
+            request.Headers.Add("Accept", "application/json");
             return message;
         }
 
@@ -302,6 +258,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <param name="notebookName"> The notebook name. </param>
         /// <param name="ifNoneMatch"> ETag of the Notebook entity. Should only be specified for get. If the ETag matches the existing entity tag, or if * was provided, then no content will be returned. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="notebookName"/> is null. </exception>
         public async Task<Response<NotebookResource>> GetNotebookAsync(string notebookName, string ifNoneMatch = null, CancellationToken cancellationToken = default)
         {
             if (notebookName == null)
@@ -317,14 +274,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookResource value = default;
                         using var document = await JsonDocument.ParseAsync(message.Response.ContentStream, default, cancellationToken).ConfigureAwait(false);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookResource.DeserializeNotebookResource(document.RootElement);
-                        }
+                        value = NotebookResource.DeserializeNotebookResource(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 case 304:
@@ -338,6 +288,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <param name="notebookName"> The notebook name. </param>
         /// <param name="ifNoneMatch"> ETag of the Notebook entity. Should only be specified for get. If the ETag matches the existing entity tag, or if * was provided, then no content will be returned. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="notebookName"/> is null. </exception>
         public Response<NotebookResource> GetNotebook(string notebookName, string ifNoneMatch = null, CancellationToken cancellationToken = default)
         {
             if (notebookName == null)
@@ -353,14 +304,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookResource value = default;
                         using var document = JsonDocument.Parse(message.Response.ContentStream);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookResource.DeserializeNotebookResource(document.RootElement);
-                        }
+                        value = NotebookResource.DeserializeNotebookResource(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 case 304:
@@ -381,12 +325,14 @@ namespace Azure.Analytics.Synapse.Artifacts
             uri.AppendPath(notebookName, true);
             uri.AppendQuery("api-version", apiVersion, true);
             request.Uri = uri;
+            request.Headers.Add("Accept", "application/json");
             return message;
         }
 
         /// <summary> Deletes a Note book. </summary>
         /// <param name="notebookName"> The notebook name. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="notebookName"/> is null. </exception>
         public async Task<Response> DeleteNotebookAsync(string notebookName, CancellationToken cancellationToken = default)
         {
             if (notebookName == null)
@@ -399,6 +345,7 @@ namespace Azure.Analytics.Synapse.Artifacts
             switch (message.Response.Status)
             {
                 case 200:
+                case 202:
                 case 204:
                     return message.Response;
                 default:
@@ -409,6 +356,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <summary> Deletes a Note book. </summary>
         /// <param name="notebookName"> The notebook name. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="notebookName"/> is null. </exception>
         public Response DeleteNotebook(string notebookName, CancellationToken cancellationToken = default)
         {
             if (notebookName == null)
@@ -421,7 +369,84 @@ namespace Azure.Analytics.Synapse.Artifacts
             switch (message.Response.Status)
             {
                 case 200:
+                case 202:
                 case 204:
+                    return message.Response;
+                default:
+                    throw _clientDiagnostics.CreateRequestFailedException(message.Response);
+            }
+        }
+
+        internal HttpMessage CreateRenameNotebookRequest(string notebookName, ArtifactRenameRequest request)
+        {
+            var message = _pipeline.CreateMessage();
+            var request0 = message.Request;
+            request0.Method = RequestMethod.Post;
+            var uri = new RawRequestUriBuilder();
+            uri.AppendRaw(endpoint, false);
+            uri.AppendPath("/notebooks/", false);
+            uri.AppendPath(notebookName, true);
+            uri.AppendPath("/rename", false);
+            uri.AppendQuery("api-version", apiVersion, true);
+            request0.Uri = uri;
+            request0.Headers.Add("Content-Type", "application/json");
+            request0.Headers.Add("Accept", "application/json");
+            var content = new Utf8JsonRequestContent();
+            content.JsonWriter.WriteObjectValue(request);
+            request0.Content = content;
+            return message;
+        }
+
+        /// <summary> Renames a notebook. </summary>
+        /// <param name="notebookName"> The notebook name. </param>
+        /// <param name="request"> proposed new name. </param>
+        /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="notebookName"/> or <paramref name="request"/> is null. </exception>
+        public async Task<Response> RenameNotebookAsync(string notebookName, ArtifactRenameRequest request, CancellationToken cancellationToken = default)
+        {
+            if (notebookName == null)
+            {
+                throw new ArgumentNullException(nameof(notebookName));
+            }
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            using var message = CreateRenameNotebookRequest(notebookName, request);
+            await _pipeline.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            switch (message.Response.Status)
+            {
+                case 200:
+                case 202:
+                    return message.Response;
+                default:
+                    throw await _clientDiagnostics.CreateRequestFailedExceptionAsync(message.Response).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary> Renames a notebook. </summary>
+        /// <param name="notebookName"> The notebook name. </param>
+        /// <param name="request"> proposed new name. </param>
+        /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="notebookName"/> or <paramref name="request"/> is null. </exception>
+        public Response RenameNotebook(string notebookName, ArtifactRenameRequest request, CancellationToken cancellationToken = default)
+        {
+            if (notebookName == null)
+            {
+                throw new ArgumentNullException(nameof(notebookName));
+            }
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            using var message = CreateRenameNotebookRequest(notebookName, request);
+            _pipeline.Send(message, cancellationToken);
+            switch (message.Response.Status)
+            {
+                case 200:
+                case 202:
                     return message.Response;
                 default:
                     throw _clientDiagnostics.CreateRequestFailedException(message.Response);
@@ -437,12 +462,14 @@ namespace Azure.Analytics.Synapse.Artifacts
             uri.AppendRaw(endpoint, false);
             uri.AppendRawNextLink(nextLink, false);
             request.Uri = uri;
+            request.Headers.Add("Accept", "application/json");
             return message;
         }
 
         /// <summary> Lists Notebooks. </summary>
         /// <param name="nextLink"> The URL to the next page of results. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="nextLink"/> is null. </exception>
         public async Task<Response<NotebookListResponse>> GetNotebooksByWorkspaceNextPageAsync(string nextLink, CancellationToken cancellationToken = default)
         {
             if (nextLink == null)
@@ -458,14 +485,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookListResponse value = default;
                         using var document = await JsonDocument.ParseAsync(message.Response.ContentStream, default, cancellationToken).ConfigureAwait(false);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
-                        }
+                        value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 default:
@@ -476,6 +496,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <summary> Lists Notebooks. </summary>
         /// <param name="nextLink"> The URL to the next page of results. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="nextLink"/> is null. </exception>
         public Response<NotebookListResponse> GetNotebooksByWorkspaceNextPage(string nextLink, CancellationToken cancellationToken = default)
         {
             if (nextLink == null)
@@ -491,14 +512,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookListResponse value = default;
                         using var document = JsonDocument.Parse(message.Response.ContentStream);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
-                        }
+                        value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 default:
@@ -515,12 +529,14 @@ namespace Azure.Analytics.Synapse.Artifacts
             uri.AppendRaw(endpoint, false);
             uri.AppendRawNextLink(nextLink, false);
             request.Uri = uri;
+            request.Headers.Add("Accept", "application/json");
             return message;
         }
 
         /// <summary> Lists a summary of Notebooks. </summary>
         /// <param name="nextLink"> The URL to the next page of results. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="nextLink"/> is null. </exception>
         public async Task<Response<NotebookListResponse>> GetNotebookSummaryByWorkSpaceNextPageAsync(string nextLink, CancellationToken cancellationToken = default)
         {
             if (nextLink == null)
@@ -536,14 +552,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookListResponse value = default;
                         using var document = await JsonDocument.ParseAsync(message.Response.ContentStream, default, cancellationToken).ConfigureAwait(false);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
-                        }
+                        value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 default:
@@ -554,6 +563,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <summary> Lists a summary of Notebooks. </summary>
         /// <param name="nextLink"> The URL to the next page of results. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="nextLink"/> is null. </exception>
         public Response<NotebookListResponse> GetNotebookSummaryByWorkSpaceNextPage(string nextLink, CancellationToken cancellationToken = default)
         {
             if (nextLink == null)
@@ -569,14 +579,7 @@ namespace Azure.Analytics.Synapse.Artifacts
                     {
                         NotebookListResponse value = default;
                         using var document = JsonDocument.Parse(message.Response.ContentStream);
-                        if (document.RootElement.ValueKind == JsonValueKind.Null)
-                        {
-                            value = null;
-                        }
-                        else
-                        {
-                            value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
-                        }
+                        value = NotebookListResponse.DeserializeNotebookListResponse(document.RootElement);
                         return Response.FromValue(value, message.Response);
                     }
                 default:

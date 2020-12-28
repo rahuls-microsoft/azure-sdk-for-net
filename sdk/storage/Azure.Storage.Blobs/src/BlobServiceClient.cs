@@ -11,7 +11,9 @@ using Azure.Core;
 using Azure.Core.Pipeline;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Cryptography;
+using Azure.Storage.Sas;
 using Metadata = System.Collections.Generic.IDictionary<string, string>;
+using System.Linq;
 
 namespace Azure.Storage.Blobs
 {
@@ -125,6 +127,17 @@ namespace Azure.Storage.Blobs
             }
         }
 
+        /// <summary>
+        /// The <see cref="StorageSharedKeyCredential"/> used to authenticate and generate SAS
+        /// </summary>
+        private StorageSharedKeyCredential _storageSharedKeyCredential;
+
+        /// <summary>
+        /// Determines whether the client is able to generate a SAS.
+        /// If the client is authenticated with a <see cref="StorageSharedKeyCredential"/>.
+        /// </summary>
+        public bool CanGenerateAccountSasUri => _storageSharedKeyCredential != null;
+
         #region ctors
         /// <summary>
         /// Initializes a new instance of the <see cref="BlobServiceClient"/>
@@ -143,7 +156,7 @@ namespace Azure.Storage.Blobs
         /// required for your application to access data in an Azure Storage
         /// account at runtime.
         ///
-        /// For more information, <see href="https://docs.microsoft.com/azure/storage/common/storage-configure-connection-string">Configure Azure Storage connection strings</see>
+        /// For more information, <see href="https://docs.microsoft.com/azure/storage/common/storage-configure-connection-string">Configure Azure Storage connection strings</see>.
         /// </param>
         public BlobServiceClient(string connectionString)
             : this(connectionString, null)
@@ -159,7 +172,9 @@ namespace Azure.Storage.Blobs
         /// required for your application to access data in an Azure Storage
         /// account at runtime.
         ///
-        /// For more information, <see href="https://docs.microsoft.com/azure/storage/common/storage-configure-connection-string">Configure Azure Storage connection strings</see>
+        /// For more information,
+        /// <see href="https://docs.microsoft.com/azure/storage/common/storage-configure-connection-string">
+        /// Configure Azure Storage connection strings</see>.
         /// </param>
         /// <param name="options">
         /// Optional client options that define the transport pipeline
@@ -178,6 +193,7 @@ namespace Azure.Storage.Blobs
             _customerProvidedKey = options.CustomerProvidedKey;
             _clientSideEncryption = options._clientSideEncryptionOptions?.Clone();
             _encryptionScope = options.EncryptionScope;
+            _storageSharedKeyCredential = conn.Credentials as StorageSharedKeyCredential;
             BlobErrors.VerifyHttpsCustomerProvidedKey(_uri, _customerProvidedKey);
             BlobErrors.VerifyCpkAndEncryptionScopeNotBothSet(_customerProvidedKey, _encryptionScope);
         }
@@ -217,7 +233,7 @@ namespace Azure.Storage.Blobs
         /// every request.
         /// </param>
         public BlobServiceClient(Uri serviceUri, StorageSharedKeyCredential credential, BlobClientOptions options = default)
-            : this(serviceUri, credential.AsPolicy(), options ?? new BlobClientOptions())
+            : this(serviceUri, credential.AsPolicy(), options ?? new BlobClientOptions(), credential)
         {
         }
 
@@ -259,7 +275,14 @@ namespace Azure.Storage.Blobs
         /// policies for authentication, retries, etc., that are applied to
         /// every request.
         /// </param>
-        internal BlobServiceClient(Uri serviceUri, HttpPipelinePolicy authentication, BlobClientOptions options)
+        /// <param name="storageSharedKeyCredential">
+        /// Optional storage shared key credential used to sign requests and generate sas.
+        /// </param>
+        internal BlobServiceClient(
+            Uri serviceUri,
+            HttpPipelinePolicy authentication,
+            BlobClientOptions options,
+            StorageSharedKeyCredential storageSharedKeyCredential = default)
             : this(
                   serviceUri,
                   authentication,
@@ -268,9 +291,9 @@ namespace Azure.Storage.Blobs
                   options?.CustomerProvidedKey,
                   options?._clientSideEncryptionOptions?.Clone(),
                   options?.EncryptionScope,
-                  options.Build(authentication))
+                  options.Build(authentication),
+                  storageSharedKeyCredential)
         {
-
         }
 
         /// <summary>
@@ -297,6 +320,7 @@ namespace Azure.Storage.Blobs
         /// <param name="pipeline">
         /// The transport pipeline used to send every request.
         /// </param>
+        /// <param name="storageSharedKeyCredential">Storage Shared Key Credential</param>
         internal BlobServiceClient(
             Uri serviceUri,
             HttpPipelinePolicy authentication,
@@ -305,7 +329,8 @@ namespace Azure.Storage.Blobs
             CustomerProvidedKey? customerProvidedKey,
             ClientSideEncryptionOptions clientSideEncryption,
             string encryptionScope,
-            HttpPipeline pipeline)
+            HttpPipeline pipeline,
+            StorageSharedKeyCredential storageSharedKeyCredential = default)
         {
             _uri = serviceUri;
             _authenticationPolicy = authentication;
@@ -315,6 +340,7 @@ namespace Azure.Storage.Blobs
             _customerProvidedKey = customerProvidedKey;
             _clientSideEncryption = clientSideEncryption?.Clone();
             _encryptionScope = encryptionScope;
+            _storageSharedKeyCredential = storageSharedKeyCredential;
             BlobErrors.VerifyCpkAndEncryptionScopeNotBothSet(_customerProvidedKey, _encryptionScope);
             BlobErrors.VerifyHttpsCustomerProvidedKey(_uri, _customerProvidedKey);
         }
@@ -420,7 +446,9 @@ namespace Azure.Storage.Blobs
         /// blob containers may make multiple requests to the service while fetching
         /// all the values.  Containers are ordered lexicographically by name.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2">List Containers</see>.
+        /// For more information,
+        /// see <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2">
+        /// List Containers</see>.
         /// </summary>
         /// <param name="traits">
         /// Specifies trait options for shaping the blob containers.
@@ -457,7 +485,9 @@ namespace Azure.Storage.Blobs
         /// blob containers may make multiple requests to the service while fetching
         /// all the values.  Containers are ordered lexicographically by name.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2">List Containers</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2">
+        /// List Containers</see>.
         /// </summary>
         /// <param name="traits">
         /// Specifies trait options for shaping the blob containers.
@@ -493,7 +523,9 @@ namespace Azure.Storage.Blobs
         /// blob containers may make multiple requests to the service while fetching
         /// all the values.  Containers are ordered lexicographically by name.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2"/>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2">
+        /// List Containers</see>.
         /// </summary>
         /// <param name="traits">
         /// Specifies trait options for shaping the blob containers.
@@ -530,7 +562,9 @@ namespace Azure.Storage.Blobs
         /// blob containers may make multiple requests to the service while fetching
         /// all the values.  Containers are ordered lexicographically by name.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2"/>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2">
+        /// List Containers</see>.
         /// </summary>
         /// <param name="traits">
         /// Specifies trait options for shaping the blob containers.
@@ -570,7 +604,9 @@ namespace Azure.Storage.Blobs
         /// to continue enumerating the containers segment by segment.
         /// Containers are ordered lexicographically by name.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2">List Containers</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/list-containers2">
+        /// List Containers</see>.
         /// </summary>
         /// <param name="continuationToken">
         /// An optional string value that identifies the segment of the list
@@ -669,7 +705,9 @@ namespace Azure.Storage.Blobs
         /// The <see cref="GetAccountInfo"/> operation returns the sku
         /// name and account kind for the specified account.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-account-information" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-account-information">
+        /// Get Account Information</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -693,7 +731,9 @@ namespace Azure.Storage.Blobs
         /// The <see cref="GetAccountInfoAsync"/> operation returns the sku
         /// name and account kind for the specified account.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-account-information" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-account-information">
+        /// Get Account Information</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -717,7 +757,9 @@ namespace Azure.Storage.Blobs
         /// The <see cref="GetAccountInfoInternal"/> operation returns the sku
         /// name and account kind for the specified account.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-account-information" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-account-information">
+        /// Get Account Information</see>.
         /// </summary>
         /// <param name="async">
         /// Whether to invoke the operation asynchronously.
@@ -771,7 +813,9 @@ namespace Azure.Storage.Blobs
         /// of a storage account’s blob service, including properties for
         /// Storage Analytics and CORS (Cross-Origin Resource Sharing) rules.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties">
+        /// Get Blob Service Properties</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -797,7 +841,9 @@ namespace Azure.Storage.Blobs
         /// of a storage account’s blob service, including properties for
         /// Storage Analytics and CORS (Cross-Origin Resource Sharing) rules.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties">
+        /// Get Blob Service Properties</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -823,7 +869,9 @@ namespace Azure.Storage.Blobs
         /// of a storage account’s blob service, including properties for
         /// Storage Analytics and CORS (Cross-Origin Resource Sharing) rules.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/get-blob-service-properties">
+        /// Get Blob Service Properties</see>.
         /// </summary>
         /// <param name="async">
         /// Whether to invoke the operation asynchronously.
@@ -881,7 +929,9 @@ namespace Azure.Storage.Blobs
         /// the default request version for all incoming requests to the Blob
         /// service that do not have a version specified.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-service-properties">Set Blob Service Properties</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-service-properties">
+        /// Set Blob Service Properties</see>.
         /// </summary>
         /// <param name="properties">The blob service properties.</param>
         /// <param name="cancellationToken">
@@ -913,7 +963,9 @@ namespace Azure.Storage.Blobs
         /// the default request version for all incoming requests to the Blob
         /// service that do not have a version specified.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-service-properties">Set Blob Service Properties</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-service-properties">
+        /// Set Blob Service Properties</see>.
         /// </summary>
         /// <param name="properties">The blob service properties.</param>
         /// <param name="cancellationToken">
@@ -945,7 +997,9 @@ namespace Azure.Storage.Blobs
         /// the default request version for all incoming requests to the Blob
         /// service that do not have a version specified.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-service-properties">Set Blob Service Properties</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-blob-service-properties">
+        /// Set Blob Service Properties</see>.
         /// </summary>
         /// <param name="properties">The blob service properties.</param>
         /// <param name="async">
@@ -1009,7 +1063,9 @@ namespace Azure.Storage.Blobs
         /// geo-redundant replication (<see cref="Models.SkuName.StandardRagrs"/>)
         /// is enabled for the storage account.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-service-stats">Get Blob Service Stats</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-service-stats">
+        /// Get Blob Service Stats</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -1037,7 +1093,9 @@ namespace Azure.Storage.Blobs
         /// geo-redundant replication (<see cref="Models.SkuName.StandardRagrs"/>)
         /// is enabled for the storage account.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-service-stats">Get Blob Service Stats</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-service-stats">
+        /// Get Blob Service Stats</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -1065,7 +1123,9 @@ namespace Azure.Storage.Blobs
         /// geo-redundant replication (<see cref="Models.SkuName.StandardRagrs"/>)
         /// is enabled for the storage account.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-service-stats">Get Blob Service Stats</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-blob-service-stats">
+        /// Get Blob Service Stats</see>.
         /// </summary>
         /// <param name="async">
         /// Whether to invoke the operation asynchronously.
@@ -1266,7 +1326,9 @@ namespace Azure.Storage.Blobs
         /// blob container under the specified account. If the container with the
         /// same name already exists, the operation fails.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/create-container">Create Container</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/create-container">
+        /// Create Container</see>.
         /// </summary>
         /// <param name="blobContainerName">
         /// The name of the container to create.
@@ -1316,7 +1378,9 @@ namespace Azure.Storage.Blobs
         /// blob container under the specified account. If the container with the
         /// same name already exists, the operation fails.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/create-container">Create Container</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/create-container">
+        /// Create Container</see>.
         /// </summary>
         /// <param name="blobContainerName">
         /// The name of the container to create.
@@ -1368,7 +1432,9 @@ namespace Azure.Storage.Blobs
         /// specified blob container for deletion. The container and any blobs
         /// contained within it are later deleted during garbage collection.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/delete-container" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/delete-container">
+        /// Delete Container</see>.
         /// </summary>
         /// <param name="blobContainerName">
         /// The name of the container to delete.
@@ -1403,7 +1469,9 @@ namespace Azure.Storage.Blobs
         /// specified container for deletion. The container and any blobs
         /// contained within it are later deleted during garbage collection.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/delete-container" />.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/delete-container">
+        /// Delete Container</see>.
         /// </summary>
         /// <param name="blobContainerName">
         /// The name of the blob container to delete.
@@ -1463,7 +1531,7 @@ namespace Azure.Storage.Blobs
         /// A <see cref="RequestFailedException"/> will be thrown if
         /// a failure occurs.
         /// </remarks>
-        internal virtual Response<BlobContainerClient> UndeleteBlobContainer(
+        public virtual Response<BlobContainerClient> UndeleteBlobContainer(
             string deletedContainerName,
             string deletedContainerVersion,
             string destinationContainerName = default,
@@ -1502,7 +1570,7 @@ namespace Azure.Storage.Blobs
         /// A <see cref="RequestFailedException"/> will be thrown if
         /// a failure occurs.
         /// </remarks>
-        internal virtual async Task<Response<BlobContainerClient>> UndeleteBlobContainerAsync(
+        public virtual async Task<Response<BlobContainerClient>> UndeleteBlobContainerAsync(
             string deletedContainerName,
             string deletedContainerVersion,
             string destinationContainerName = default,
@@ -1604,12 +1672,17 @@ namespace Azure.Storage.Blobs
         /// The Filter Blobs operation enables callers to list blobs across all containers whose tags
         /// match a given search expression. Filter blobs searches across all containers within a
         /// storage account but can be scoped within the expression to a single container.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/find-blobs-by-tags">
+        /// Find Blobs by Tags</see>.
         /// </summary>
         /// <param name="tagFilterSqlExpression">
-        /// The where parameter enables the caller to query blobs whose tags match a given expression.
-        /// The given expression must evaluate to true for a blob to be returned in the results.
-        /// The[OData - ABNF] filter syntax rule defines the formal grammar for the value of the where query parameter;
-        /// however, only a subset of the OData filter syntax is supported in the Blob service.
+        /// The where parameter finds blobs in the storage account whose tags match a given expression.
+        /// The expression must evaluate to true for a blob to be returned in the result set.
+        /// The storage service supports a subset of the ANSI SQL WHERE clause grammar for the value of the where=expression query parameter.
+        /// The following operators are supported: =, &gt;, &gt;=, &lt;, &lt;=, AND. and @container.
+        /// Example expression: "tagKey"='tagValue'.
         /// </param>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -1622,7 +1695,7 @@ namespace Azure.Storage.Blobs
         /// A <see cref="RequestFailedException"/> will be thrown if
         /// a failure occurs.
         /// </remarks>
-        public virtual Pageable<BlobTagItem> FindBlobsByTags(
+        public virtual Pageable<TaggedBlobItem> FindBlobsByTags(
             string tagFilterSqlExpression,
             CancellationToken cancellationToken = default) =>
             new FilterBlobsAsyncCollection(this, tagFilterSqlExpression).ToSyncCollection(cancellationToken);
@@ -1631,12 +1704,17 @@ namespace Azure.Storage.Blobs
         /// The Filter Blobs operation enables callers to list blobs across all containers whose tags
         /// match a given search expression. Filter blobs searches across all containers within a
         /// storage account but can be scoped within the expression to a single container.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/find-blobs-by-tags">
+        /// Find Blobs by Tags</see>.
         /// </summary>
         /// <param name="tagFilterSqlExpression">
-        /// The where parameter enables the caller to query blobs whose tags match a given expression.
-        /// The given expression must evaluate to true for a blob to be returned in the results.
-        /// The[OData - ABNF] filter syntax rule defines the formal grammar for the value of the where query parameter;
-        /// however, only a subset of the OData filter syntax is supported in the Blob service.
+        /// The where parameter finds blobs in the storage account whose tags match a given expression.
+        /// The expression must evaluate to true for a blob to be returned in the result set.
+        /// The storage service supports a subset of the ANSI SQL WHERE clause grammar for the value of the where=expression query parameter.
+        /// The following operators are supported: =, &gt;, &gt;=, &lt;, &lt;=, AND. and @container.
+        /// Example expression: "tagKey"='tagValue'.
         /// </param>
         /// <param name="cancellationToken">
         /// Optional <see cref="CancellationToken"/> to propagate
@@ -1649,7 +1727,7 @@ namespace Azure.Storage.Blobs
         /// A <see cref="RequestFailedException"/> will be thrown if
         /// a failure occurs.
         /// </remarks>
-        public virtual AsyncPageable<BlobTagItem> FindBlobsByTagsAsync(
+        public virtual AsyncPageable<TaggedBlobItem> FindBlobsByTagsAsync(
             string tagFilterSqlExpression,
             CancellationToken cancellationToken = default) =>
             new FilterBlobsAsyncCollection(this, tagFilterSqlExpression).ToAsyncCollection(cancellationToken);
@@ -1695,5 +1773,86 @@ namespace Azure.Storage.Blobs
             }
         }
         #endregion FilterBlobs
+
+        #region GenerateSas
+        /// <summary>
+        /// The <see cref="GenerateAccountSasUri(AccountSasPermissions, DateTimeOffset, AccountSasResourceTypes)"/>
+        /// returns a <see cref="Uri"/> that generates a Blob Account
+        /// Shared Access Signature (SAS) based on the Client properties
+        /// and parameters passed. The SAS is signed by the
+        /// shared key credential of the client.
+        ///
+        /// To check if the client is able to sign a Service Sas see
+        /// <see cref="CanGenerateAccountSasUri"/>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas">
+        /// Constructing an Account SAS</see>.
+        /// </summary>
+        /// <param name="permissions">
+        /// Required. Specifies the list of permissions to be associated with the SAS.
+        /// See <see cref="AccountSasPermissions"/>.
+        /// </param>
+        /// <param name="expiresOn">
+        /// Required. The time at which the shared access signature becomes invalid.
+        /// </param>
+        /// <param name="resourceTypes">
+        /// Specifies the resource types associated with the shared access signature.
+        /// The user is restricted to operations on the specified resources.
+        /// See <see cref="AccountSasResourceTypes"/>.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Uri"/> containing the SAS Uri.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="Exception"/> will be thrown if a failure occurs.
+        /// </remarks>
+        public Uri GenerateAccountSasUri(
+            AccountSasPermissions permissions,
+            DateTimeOffset expiresOn,
+            AccountSasResourceTypes resourceTypes) =>
+            GenerateAccountSasUri(new AccountSasBuilder(
+                permissions,
+                expiresOn,
+                AccountSasServices.Blobs,
+                resourceTypes));
+
+        /// <summary>
+        /// The <see cref="GenerateAccountSasUri(AccountSasBuilder)"/> returns a <see cref="Uri"/> that
+        /// generates a Blob Account Shared Access Signature (SAS) based on the
+        /// Client properties and builder passed. The SAS is signed by the
+        /// shared key credential of the client.
+        ///
+        /// To check if the client is able to sign a Service Sas see
+        /// <see cref="CanGenerateAccountSasUri"/>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas">
+        /// Constructing an Account SAS</see>.
+        /// </summary>
+        /// <param name="builder">
+        /// Used to generate a Shared Access Signature (SAS).
+        /// </param>
+        /// <returns>
+        /// A <see cref="Uri"/> containing the SAS Uri.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="Exception"/> will be thrown if a failure occurs.
+        /// </remarks>
+        public Uri GenerateAccountSasUri(AccountSasBuilder builder)
+        {
+            builder = builder ?? throw Errors.ArgumentNull(nameof(builder));
+            if (!builder.Services.HasFlag(AccountSasServices.Blobs))
+            {
+                throw Errors.SasServiceNotMatching(
+                    nameof(builder.Services),
+                    nameof(builder),
+                    nameof(AccountSasServices.Blobs));
+            }
+            UriBuilder sasUri = new UriBuilder(Uri);
+            sasUri.Query = builder.ToSasQueryParameters(_storageSharedKeyCredential).ToString();
+            return sasUri.Uri;
+        }
+        #endregion
     }
 }

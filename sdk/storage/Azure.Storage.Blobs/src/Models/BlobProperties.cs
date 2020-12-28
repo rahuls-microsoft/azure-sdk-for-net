@@ -250,9 +250,14 @@ namespace Azure.Storage.Blobs.Models
         public bool IsSealed { get; internal set; }
 
         /// <summary>
-        /// If this blob is in rehydreate pending state, this indicates the rehydrate priority.
+        /// If this blob is in rehydrate pending state, this indicates the rehydrate priority.
         /// </summary>
         public string RehydratePriority { get; internal set; }
+
+        /// <summary>
+        /// Returns the date and time the blob was read or written to.
+        /// </summary>
+        public DateTimeOffset LastAccessed { get; internal set; }
 
         /// <summary>
         /// Constructor.

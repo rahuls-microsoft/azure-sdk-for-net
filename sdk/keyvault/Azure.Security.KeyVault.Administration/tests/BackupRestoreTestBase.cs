@@ -2,59 +2,55 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Threading.Tasks;
 using Azure.Core.TestFramework;
-using Azure.Security.KeyVault.Tests;
 using Azure.Storage;
 using Azure.Storage.Sas;
 using NUnit.Framework;
 
 namespace Azure.Security.KeyVault.Administration.Tests
 {
-    public class BackupRestoreTestBase : RecordedTestBase<KeyVaultTestEnvironment>
+    [NonParallelizable]
+    public abstract class BackupRestoreTestBase : AdministrationTestBase
     {
-        public KeyVaultBackupClient Client { get; set; }
-        internal string SasToken { get; set; }
+        public KeyVaultBackupClient Client { get; private set; }
 
-        public BackupRestoreTestBase(bool isAsync, RecordedTestMode mode) : base(isAsync, mode)
+        internal string SasToken { get; private set; }
+        internal string BlobContainerName = "backup";
+
+        public BackupRestoreTestBase(bool isAsync, RecordedTestMode? mode)
+            : base(isAsync, mode)
         {
             Sanitizer = new BackupRestoreRecordedTestSanitizer();
         }
 
-        public BackupRestoreTestBase(bool isAsync) : base(isAsync)
+        internal KeyVaultBackupClient GetClient(bool isInstrumented = true)
         {
-            Sanitizer = new BackupRestoreRecordedTestSanitizer();
+            var client = new KeyVaultBackupClient(
+                Uri,
+                TestEnvironment.Credential,
+                InstrumentClientOptions(new KeyVaultAdministrationClientOptions()));
+            return isInstrumented ? InstrumentClient(client) : client;
         }
 
-        private KeyVaultBackupClient GetClient(TestRecording recording = null)
+        protected override void Start()
         {
-            recording ??= Recording;
+            Client = GetClient();
+            SasToken = GenerateSasToken();
 
-            return InstrumentClient
-                (new KeyVaultBackupClient(
-                    new Uri(TestEnvironment.KeyVaultUrl),
-                    TestEnvironment.Credential,
-                    recording.InstrumentClientOptions(new KeyVaultBackupClientOptions())));
+            base.Start();
         }
 
-
-        [SetUp]
-        public void ClearChallengeCacheforRecord()
-        {
-            Client ??= GetClient();
-            SasToken ??= GenerateSasToken();
-
-            // in record mode we reset the challenge cache before each test so that the challenge call
-            // is always made.  This allows tests to be replayed independently and in any order
-            if (Mode == RecordedTestMode.Record || Mode == RecordedTestMode.Playback)
-            {
-                Client = GetClient();
-
-                ChallengeBasedAuthenticationPolicy.AuthenticationChallenge.ClearCache();
-            }
-        }
+        // The service polls every second, so wait a bit to make sure the operation appears completed.
+        protected async Task WaitForOperationAsync() =>
+            await DelayAsync(TimeSpan.FromSeconds(2));
 
         private string GenerateSasToken()
         {
+            if (Mode == RecordedTestMode.Playback)
+            {
+                return RecordedTestSanitizer.SanitizeValue;
+            }
             // Create a service level SAS that only allows reading from service
             // level APIs
             AccountSasBuilder sas = new AccountSasBuilder
@@ -63,7 +59,7 @@ namespace Azure.Security.KeyVault.Administration.Tests
                 Services = AccountSasServices.Blobs,
 
                 // Allow access to the service level APIs.
-                ResourceTypes = AccountSasResourceTypes.Service,
+                ResourceTypes = AccountSasResourceTypes.All,
 
                 // Access expires in 1 hour.
                 ExpiresOn = DateTimeOffset.UtcNow.AddHours(1)

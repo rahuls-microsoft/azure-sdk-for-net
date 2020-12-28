@@ -39,14 +39,19 @@
     <IsMgmtClientLibrary Condition="'$(IsMgmtClientLibrary)' == '' and ($(MSBuildProjectName.StartsWith('Azure.Management.')) or $(MSBuildProjectName.StartsWith('Azure.ResourceManager.')))">true</IsMgmtClientLibrary>
     <IsTestProject Condition="$(MSBuildProjectName.EndsWith('.Tests'))">true</IsTestProject>
     <IsSamplesProject Condition="$(MSBuildProjectName.EndsWith('.Samples'))">true</IsSamplesProject>
+    <IsPerfProject Condition="$(MSBuildProjectName.EndsWith('.Perf'))">true</IsPerfProject>
+    <IsStressProject Condition="$(MSBuildProjectName.EndsWith('.Stress'))">true</IsStressProject>
     <IsTestSupportProject Condition="'$(IsTestProject)' != 'true' and ($(MSBuildProjectDirectory.Contains('/tests/')) or $(MSBuildProjectDirectory.Contains('\tests\')))">true</IsTestSupportProject>
-    <IsShippingClientLibrary Condition="'$(IsClientLibrary)' == 'true' and '$(IsTestProject)' != 'true' and '$(IsTestSupportProject)' != 'true' and '$(IsSamplesProject)' != 'true'">true</IsShippingClientLibrary>
-    <IsShippingDataPlaneLibrary Condition="'$(IsDataPlaneProject)' == 'true' and '$(IsTestProject)' != 'true' and '$(IsTestSupportProject)' != 'true' and '$(IsSamplesProject)' != 'true'">true</IsShippingDataPlaneLibrary>
+    <IsShippingClientLibrary Condition="'$(IsClientLibrary)' == 'true' and '$(IsTestProject)' != 'true' and '$(IsTestSupportProject)' != 'true' and '$(IsPerfProject)' != 'true' and '$(IsSamplesProject)' != 'true' and '$(IsStressProject)' != 'true'">true</IsShippingClientLibrary>
+    <IsShippingDataPlaneLibrary Condition="'$(IsDataPlaneProject)' == 'true' and '$(IsTestProject)' != 'true' and '$(IsTestSupportProject)' != 'true' and '$(IsSamplesProject)' != 'true' and '$(IsPerfProject)' != 'true' and '$(IsStressProject)' != 'true'">true</IsShippingDataPlaneLibrary>
 
     <EnableClientSdkAnalyzers Condition="'$(IsShippingClientLibrary)' == 'true'">true</EnableClientSdkAnalyzers>
     <EnableFxCopAnalyzers Condition="'$(IsShippingClientLibrary)' == 'true'">true</EnableFxCopAnalyzers>
     <EnableStyleCopAnalyzers Condition="'$(EnableStyleCopAnalyzers)' == '' and '$(IsClientLibrary)' == 'true'">true</EnableStyleCopAnalyzers>
     <GenerateAPIListing Condition="'$(IsShippingClientLibrary)' == 'true'">true</GenerateAPIListing>
+    <UpdateSourceOnBuild Condition="'$(UpdateSourceOnBuild)' == ''">$(AZURE_DEV_UPDATESOURCESONBUILD)</UpdateSourceOnBuild>
+    <PowerShellExe Condition="'$(PowerShellExe)' == ''">pwsh</PowerShellExe>
+    <CoverletOutputFormat Condition="'$(CoverletOutputFormat)' == '' and '$(CollectCoverage)' == 'true'">cobertura</CoverletOutputFormat>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsShippingClientLibrary)' == 'true' and '$(TF_BUILD)' == 'true'">
@@ -59,6 +64,7 @@
       $(NoWarn);
       CA1812;  <!-- Avoid uninstantiated internal classes. (Result from below including the Azure.Core source) -->
       AZC0012; <!-- Single word class names -->
+      AZC0008;
     </NoWarn>
   </PropertyGroup>
 
@@ -77,12 +83,13 @@
     <RequiredTargetFrameworks Condition="'$(SupportsNetStandard20)' == 'true'">netstandard2.0</RequiredTargetFrameworks>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(IsTestProject)' == 'true' or '$(IsTestSupportProject)' == 'true' or '$(IsSamplesProject)' == 'true'">
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true' or '$(IsTestSupportProject)' == 'true' or '$(IsSamplesProject)' == 'true' or '$(IsPerfProject)' == 'true' or '$(IsStressProject)' == 'true'">
     <IsPackable>false</IsPackable>
     <RequiredTargetFrameworks>netcoreapp2.1</RequiredTargetFrameworks>
     <RequiredTargetFrameworks Condition="'$(OS)' == 'Windows_NT'">netcoreapp2.1;net461</RequiredTargetFrameworks>
   </PropertyGroup>
 
+  <Import Project="$(RepoRoot)/sdk/core/Azure.Core/src/Azure.Core.props" Condition="'$(IsMgmtClientLibrary)' == 'true'"/>
   <Import Project="TestFramework.props" Condition="'$(IsTestProject)' == 'true'"/>
 
   <PropertyGroup>
@@ -102,6 +109,7 @@
     <Authors>Microsoft</Authors>
     <Product>Azure .NET SDK</Product>
     <PackageIcon>pkgicon.png</PackageIcon>
+    <PackageIconPath>$(RepoEngPath)/images/$(PackageIcon)</PackageIconPath>
     <RepositoryUrl>https://github.com/Azure/azure-sdk-for-net</RepositoryUrl>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
@@ -130,7 +138,6 @@
     <DelaySign>false</DelaySign>
     <PublicSign>false</PublicSign>
     <ImportDefaultReferences>false</ImportDefaultReferences>
-    <LangVersion>preview</LangVersion>
     <DocumentationFile>$(IntermediateOutputPath)$(TargetFramework)\$(MSBuildProjectName).xml</DocumentationFile>
 
     <!-- The set of tags that should be added to the packages -->
@@ -139,12 +146,24 @@
     <AzureCoreTestFramework>$(MSBuildThisFileDirectory)/../sdk/core/Azure.Core.TestFramework/src/Azure.Core.TestFramework.csproj</AzureCoreTestFramework>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(IsTestProject)' == 'true' or '$(IsTestSupportProject)' == 'true' or '$(IsSamplesProject)' == 'true'">
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true' or '$(IsTestSupportProject)' == 'true' or '$(IsSamplesProject)' == 'true' or '$(IsPerfProject)' == 'true' or '$(IsStressProject)' == 'true'">
     <!-- Always fully sign test assemblies since we have a full public/private key -->
     <PublicSign>false</PublicSign>
     <DelaySign>false</DelaySign>
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)AzSdkTestLibKey.snk</AssemblyOriginatorKeyFile>
     <!-- Disable doc comments for test projects -->
     <DocumentationFile></DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsPerfProject)' == 'true'">
+    <ServerGarbageCollection>true</ServerGarbageCollection>
+  </PropertyGroup>
+
+  <!-- Code generation settings -->
+  <PropertyGroup>
+    <!-- Don't use code generator bundled Azure.Core shared source for code generation -->
+    <AzureCoreSharedCodeDirectory>$(AzureCoreSharedSources)</AzureCoreSharedCodeDirectory>
+    <!-- Don't use code generator bundled Azure.Core shared source when building, projects in this repo include individual sources when needed  -->
+    <IncludeAzureCoreSharedCode>false</IncludeAzureCoreSharedCode>
   </PropertyGroup>
 </Project>

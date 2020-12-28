@@ -145,21 +145,53 @@ namespace Azure.Messaging.ServiceBus.Tests.Processor
             var client = new ServiceBusClient(connString);
             var options = new ServiceBusSessionProcessorOptions
             {
-                AutoComplete = false,
-                MaxConcurrentCalls = 10,
+                AutoCompleteMessages = false,
+                MaxConcurrentSessions = 10,
                 PrefetchCount = 5,
-                ReceiveMode = ReceiveMode.ReceiveAndDelete,
+                ReceiveMode = ServiceBusReceiveMode.ReceiveAndDelete,
                 MaxAutoLockRenewalDuration = TimeSpan.FromSeconds(60),
+                MaxConcurrentCallsPerSession = 4
             };
             var processor = client.CreateSessionProcessor("queueName", options);
-            Assert.AreEqual(options.AutoComplete, processor.AutoComplete);
-            Assert.AreEqual(options.MaxConcurrentCalls, processor.MaxConcurrentCalls);
+            Assert.AreEqual(options.AutoCompleteMessages, processor.AutoCompleteMessages);
+            Assert.AreEqual(options.MaxConcurrentSessions, processor.MaxConcurrentSessions);
+            Assert.AreEqual(options.MaxConcurrentCallsPerSession, processor.MaxConcurrentCallsPerSession);
             Assert.AreEqual(options.PrefetchCount, processor.PrefetchCount);
             Assert.AreEqual(options.ReceiveMode, processor.ReceiveMode);
             Assert.AreEqual(options.MaxAutoLockRenewalDuration, processor.MaxAutoLockRenewalDuration);
             Assert.AreEqual(fullyQualifiedNamespace, processor.FullyQualifiedNamespace);
+            Assert.IsFalse(processor.IsClosed);
+            Assert.IsFalse(processor.IsProcessing);
         }
 
+        [Test]
+        public void ProcessorOptionsValidation()
+        {
+            var options = new ServiceBusSessionProcessorOptions();
+            Assert.That(
+                () => options.PrefetchCount = -1,
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => options.MaxConcurrentSessions = 0,
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => options.MaxConcurrentCallsPerSession = -1,
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => options.MaxAutoLockRenewalDuration = TimeSpan.FromSeconds(-1),
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => options.MaxReceiveWaitTime = TimeSpan.FromSeconds(0),
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => options.MaxReceiveWaitTime = TimeSpan.FromSeconds(-1),
+                Throws.InstanceOf<ArgumentOutOfRangeException>());
+
+            // should not throw
+            options.PrefetchCount = 0;
+            options.MaxReceiveWaitTime = TimeSpan.FromSeconds(1);
+            options.MaxAutoLockRenewalDuration = TimeSpan.FromSeconds(0);
+        }
 
         [Test]
         public async Task UserSettledPropertySetCorrectly()
@@ -197,7 +229,7 @@ namespace Azure.Messaging.ServiceBus.Tests.Processor
             Assert.IsFalse(msg.IsSettled);
 
             msg.IsSettled = false;
-            await args.SetSessionStateAsync(new byte[] { });
+            await args.SetSessionStateAsync(default);
             Assert.IsFalse(msg.IsSettled);
         }
 

@@ -4,7 +4,7 @@
 ## Configuration
 ``` yaml
 # Generate blob storage
-input-file: https://raw.githubusercontent.com/Azure/azure-rest-api-specs/storage-dataplane-preview/specification/storage/data-plane/Microsoft.BlobStorage/preview/2019-12-12/blob.json
+input-file: https://raw.githubusercontent.com/Azure/azure-rest-api-specs/storage-dataplane-preview/specification/storage/data-plane/Microsoft.BlobStorage/preview/2020-02-10/blob.json
 output-folder: ../src/Generated
 clear-output-folder: false
 
@@ -1415,16 +1415,15 @@ directive:
   transform: >
     $["x-ms-client-name"] = "BlobAccessPolicy";
     $.xml = {"name": "AccessPolicy"};
-    $.properties.StartsOn = $.properties.Start;
-    $.properties.StartsOn.xml = { "name": "Start"};
+    $.properties.PolicyStartsOn = $.properties.Start;
+    $.properties.PolicyStartsOn.xml = { "name": "Start"};
     delete $.properties.Start;
-    $.properties.ExpiresOn = $.properties.Expiry;
-    $.properties.ExpiresOn.xml = { "name": "Expiry"};
+    $.properties.PolicyExpiresOn = $.properties.Expiry;
+    $.properties.PolicyExpiresOn.xml = { "name": "Expiry"};
     delete $.properties.Expiry;
     $.properties.Permissions = $.properties.Permission;
     $.properties.Permissions.xml = { "name": "Permission"};
     delete $.properties.Permission;
-    $.required = ["StartsOn", "ExpiresOn", "Permissions"];
 ```
 
 ### /{containerName}/{blob}?comp=query
@@ -1433,6 +1432,8 @@ directive:
 - from: swagger-document
   where: $["x-ms-paths"]["/{containerName}/{blob}?comp=query"]
   transform: >
+    $.post.responses["200"]["x-az-stream"] = true;
+    $.post.responses["206"]["x-az-stream"] = true;
     $.post.responses.default = {
         "description": "Failure",
         "x-az-response-name": "FailureNoContent",
@@ -1629,6 +1630,26 @@ directive:
         "x-az-public": false,
         "headers": { "x-ms-error-code": { "x-ms-client-name": "ErrorCode", "type": "string" } }
     };
+```
+
+### Make ArrowField internal
+``` yaml
+directive:
+- from: swagger-document
+  where: $.definitions
+  transform: >
+    $.ArrowField["x-az-public"] = false;
+    $.ArrowField["x-ms-client-name"] = "ArrowFieldInternal";
+```
+
+### Make ArrowConfiguration internal
+``` yaml
+directive:
+- from: swagger-document
+  where: $.definitions
+  transform: >
+    $.ArrowConfiguration["x-az-public"] = false;
+    $.ArrowConfiguration["x-ms-client-name"] = "ArrowTextConfigurationInternal";
 ```
 
 ### Treat the API version as a parameter instead of a constant

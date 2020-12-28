@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>$(RequiredTargetFrameworks);net461;net47</TargetFrameworks>
+    <TargetFrameworks>$(RequiredTargetFrameworks);net47</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,5 +16,6 @@
   <ItemGroup>
     <Compile Include="$(AzureCoreSharedSources)EventSourceEventFormatting.cs" Link="Shared\%(RecursiveDir)\%(Filename)%(Extension)" />
     <Compile Include="$(AzureCoreSharedSources)ContentTypeUtilities.cs" Link="Shared\%(RecursiveDir)\%(Filename)%(Extension)" />
+    <Compile Include="$(AzureCoreSharedSources)ConnectionString.cs" Link="Shared\%(RecursiveDir)\%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

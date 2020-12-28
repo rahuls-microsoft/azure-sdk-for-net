@@ -228,6 +228,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <summary> Executes the spark job definition. </summary>
         /// <param name="sparkJobDefinitionName"> The spark job definition name. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="sparkJobDefinitionName"/> is null. </exception>
         public virtual async Task<SparkJobDefinitionExecuteSparkJobDefinitionOperation> StartExecuteSparkJobDefinitionAsync(string sparkJobDefinitionName, CancellationToken cancellationToken = default)
         {
             if (sparkJobDefinitionName == null)
@@ -252,6 +253,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <summary> Executes the spark job definition. </summary>
         /// <param name="sparkJobDefinitionName"> The spark job definition name. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="sparkJobDefinitionName"/> is null. </exception>
         public virtual SparkJobDefinitionExecuteSparkJobDefinitionOperation StartExecuteSparkJobDefinition(string sparkJobDefinitionName, CancellationToken cancellationToken = default)
         {
             if (sparkJobDefinitionName == null)
@@ -273,9 +275,70 @@ namespace Azure.Analytics.Synapse.Artifacts
             }
         }
 
+        /// <summary> Renames a sparkJobDefinition. </summary>
+        /// <param name="sparkJobDefinitionName"> The spark job definition name. </param>
+        /// <param name="request"> proposed new name. </param>
+        /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="sparkJobDefinitionName"/> or <paramref name="request"/> is null. </exception>
+        public virtual async Task<SparkJobDefinitionRenameSparkJobDefinitionOperation> StartRenameSparkJobDefinitionAsync(string sparkJobDefinitionName, ArtifactRenameRequest request, CancellationToken cancellationToken = default)
+        {
+            if (sparkJobDefinitionName == null)
+            {
+                throw new ArgumentNullException(nameof(sparkJobDefinitionName));
+            }
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            using var scope = _clientDiagnostics.CreateScope("SparkJobDefinitionClient.StartRenameSparkJobDefinition");
+            scope.Start();
+            try
+            {
+                var originalResponse = await RestClient.RenameSparkJobDefinitionAsync(sparkJobDefinitionName, request, cancellationToken).ConfigureAwait(false);
+                return new SparkJobDefinitionRenameSparkJobDefinitionOperation(_clientDiagnostics, _pipeline, RestClient.CreateRenameSparkJobDefinitionRequest(sparkJobDefinitionName, request).Request, originalResponse);
+            }
+            catch (Exception e)
+            {
+                scope.Failed(e);
+                throw;
+            }
+        }
+
+        /// <summary> Renames a sparkJobDefinition. </summary>
+        /// <param name="sparkJobDefinitionName"> The spark job definition name. </param>
+        /// <param name="request"> proposed new name. </param>
+        /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="sparkJobDefinitionName"/> or <paramref name="request"/> is null. </exception>
+        public virtual SparkJobDefinitionRenameSparkJobDefinitionOperation StartRenameSparkJobDefinition(string sparkJobDefinitionName, ArtifactRenameRequest request, CancellationToken cancellationToken = default)
+        {
+            if (sparkJobDefinitionName == null)
+            {
+                throw new ArgumentNullException(nameof(sparkJobDefinitionName));
+            }
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            using var scope = _clientDiagnostics.CreateScope("SparkJobDefinitionClient.StartRenameSparkJobDefinition");
+            scope.Start();
+            try
+            {
+                var originalResponse = RestClient.RenameSparkJobDefinition(sparkJobDefinitionName, request, cancellationToken);
+                return new SparkJobDefinitionRenameSparkJobDefinitionOperation(_clientDiagnostics, _pipeline, RestClient.CreateRenameSparkJobDefinitionRequest(sparkJobDefinitionName, request).Request, originalResponse);
+            }
+            catch (Exception e)
+            {
+                scope.Failed(e);
+                throw;
+            }
+        }
+
         /// <summary> Debug the spark job definition. </summary>
         /// <param name="sparkJobDefinitionAzureResource"> Spark Job Definition resource definition. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="sparkJobDefinitionAzureResource"/> is null. </exception>
         public virtual async Task<SparkJobDefinitionDebugSparkJobDefinitionOperation> StartDebugSparkJobDefinitionAsync(SparkJobDefinitionResource sparkJobDefinitionAzureResource, CancellationToken cancellationToken = default)
         {
             if (sparkJobDefinitionAzureResource == null)
@@ -300,6 +363,7 @@ namespace Azure.Analytics.Synapse.Artifacts
         /// <summary> Debug the spark job definition. </summary>
         /// <param name="sparkJobDefinitionAzureResource"> Spark Job Definition resource definition. </param>
         /// <param name="cancellationToken"> The cancellation token to use. </param>
+        /// <exception cref="ArgumentNullException"> <paramref name="sparkJobDefinitionAzureResource"/> is null. </exception>
         public virtual SparkJobDefinitionDebugSparkJobDefinitionOperation StartDebugSparkJobDefinition(SparkJobDefinitionResource sparkJobDefinitionAzureResource, CancellationToken cancellationToken = default)
         {
             if (sparkJobDefinitionAzureResource == null)

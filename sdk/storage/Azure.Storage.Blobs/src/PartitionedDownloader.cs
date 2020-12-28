@@ -69,7 +69,7 @@ namespace Azure.Storage.Blobs
             if (transferOptions.InitialTransferSize.HasValue
                 && transferOptions.InitialTransferSize.Value > 0)
             {
-                _initialRangeSize = transferOptions.MaximumTransferSize.Value;
+                _initialRangeSize = transferOptions.InitialTransferSize.Value;
             }
             else
             {
@@ -330,13 +330,13 @@ namespace Azure.Storage.Blobs
             Stream destination,
             CancellationToken cancellationToken)
         {
-            await result.Content.CopyToAsync(
+            using Stream source = result.Content;
+
+            await source.CopyToAsync(
                 destination,
                 Constants.DefaultDownloadCopyBufferSize,
                 cancellationToken)
                 .ConfigureAwait(false);
-
-            result.Content.Dispose();
         }
 
 

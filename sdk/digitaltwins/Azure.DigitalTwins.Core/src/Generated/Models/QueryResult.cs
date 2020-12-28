@@ -6,6 +6,7 @@
 #nullable disable
 
 using System.Collections.Generic;
+using Azure.Core;
 
 namespace Azure.DigitalTwins.Core
 {
@@ -15,16 +16,20 @@ namespace Azure.DigitalTwins.Core
         /// <summary> Initializes a new instance of QueryResult. </summary>
         internal QueryResult()
         {
+            Value = new ChangeTrackingList<object>();
         }
 
         /// <summary> Initializes a new instance of QueryResult. </summary>
-        /// <param name="items"> The query results. </param>
+        /// <param name="value"> The query results. </param>
         /// <param name="continuationToken"> A token which can be used to construct a new QuerySpecification to retrieve the next set of results. </param>
-        internal QueryResult(IReadOnlyList<string> items, string continuationToken)
+        internal QueryResult(IReadOnlyList<object> value, string continuationToken)
         {
-            Items = items;
+            Value = value;
             ContinuationToken = continuationToken;
         }
+
+        /// <summary> The query results. </summary>
+        public IReadOnlyList<object> Value { get; }
         /// <summary> A token which can be used to construct a new QuerySpecification to retrieve the next set of results. </summary>
         public string ContinuationToken { get; }
     }

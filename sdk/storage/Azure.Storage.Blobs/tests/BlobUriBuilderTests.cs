@@ -5,6 +5,7 @@ using System;
 using System.Net;
 using Azure.Core.TestFramework;
 using Azure.Storage.Sas;
+using Azure.Storage.Test;
 using Azure.Storage.Test.Shared;
 using NUnit.Framework;
 
@@ -341,6 +342,57 @@ namespace Azure.Storage.Blobs.Test
         }
 
         [Test]
+        public void BlobUriBuilder_LocalDockerUrl_PortTest()
+        {
+            // Arrange
+            // BlobEndpoint from https://docs.microsoft.com/en-us/azure/storage/common/storage-use-emulator#connect-to-the-emulator-account-using-the-well-known-account-name-and-key
+            var uriString = "http://docker_container:10000/devstoreaccount1/containername";
+            var originalUri = new UriBuilder(uriString);
+
+            // Act
+            var blobUriBuilder = new BlobUriBuilder(originalUri.Uri);
+            Uri newUri = blobUriBuilder.ToUri();
+
+            // Assert
+            Assert.AreEqual("http", blobUriBuilder.Scheme);
+            Assert.AreEqual("docker_container", blobUriBuilder.Host);
+            Assert.AreEqual("devstoreaccount1", blobUriBuilder.AccountName);
+            Assert.AreEqual("containername", blobUriBuilder.BlobContainerName);
+            Assert.AreEqual("", blobUriBuilder.BlobName);
+            Assert.AreEqual("", blobUriBuilder.Snapshot);
+            Assert.IsNull(blobUriBuilder.Sas);
+            Assert.AreEqual("", blobUriBuilder.Query);
+            Assert.AreEqual(10000, blobUriBuilder.Port);
+
+            Assert.AreEqual(originalUri, newUri);
+        }
+
+        [Test]
+        public void BlobUriBuilder_CustomUri_AccountContainerBlobTest()
+        {
+            // Arrange
+            var uriString = "https://www.mycustomname.com/containername/blobname";
+            var originalUri = new UriBuilder(uriString);
+
+            // Act
+            var blobUriBuilder = new BlobUriBuilder(originalUri.Uri);
+            Uri newUri = blobUriBuilder.ToUri();
+
+            // Assert
+            Assert.AreEqual("https", blobUriBuilder.Scheme);
+            Assert.AreEqual("www.mycustomname.com", blobUriBuilder.Host);
+            Assert.AreEqual(String.Empty, blobUriBuilder.AccountName);
+            Assert.AreEqual("containername", blobUriBuilder.BlobContainerName);
+            Assert.AreEqual("blobname", blobUriBuilder.BlobName);
+            Assert.AreEqual("", blobUriBuilder.Snapshot);
+            Assert.IsNull(blobUriBuilder.Sas);
+            Assert.AreEqual("", blobUriBuilder.Query);
+            Assert.AreEqual(443, blobUriBuilder.Port);
+
+            Assert.AreEqual(originalUri, newUri);
+        }
+
+        [Test]
         public void BlobUriBuilder_IPStyleUrl_SnapshotTest()
         {
             // Arrange
@@ -424,6 +476,45 @@ namespace Azure.Storage.Blobs.Test
             Assert.AreEqual("", blobUriBuilder.Query);
             Assert.AreEqual(443, blobUriBuilder.Port);
             Assert.AreEqual(originalUri, newUri);
+        }
+
+        [Test]
+        [TestCase("2020-10-27", "2020-10-28")]
+        [TestCase("2020-10-27T12:10Z", "2020-10-28T13:20Z")]
+        [TestCase("2020-10-27T12:10:11Z", "2020-10-28T13:20:14Z")]
+        [TestCase("2020-10-27T12:10:11.1234567Z", "2020-10-28T13:20:14.7654321Z")]
+        public void BlobUriBuilder_SasStartExpiryTimeFormats(string startTime, string expiryTime)
+        {
+            // Arrange
+            Uri initialUri = new Uri($"https://account.blob.core.windows.net/container/blob?sv=2020-02-10&st={WebUtility.UrlEncode(startTime)}&se={WebUtility.UrlEncode(expiryTime)}&sr=b&sp=racwd&sig=jQetX8odiJoZ7Yo0X8vWgh%2FMqRv9WE3GU%2Fr%2BLNMK3GU%3D");
+            BlobUriBuilder blobUriBuilder = new BlobUriBuilder(initialUri);
+
+            // Act
+            Uri resultUri = blobUriBuilder.ToUri();
+
+            // Assert
+            Assert.AreEqual(initialUri, resultUri);
+            Assert.IsTrue(resultUri.PathAndQuery.Contains($"st={WebUtility.UrlEncode(startTime)}"));
+            Assert.IsTrue(resultUri.PathAndQuery.Contains($"se={WebUtility.UrlEncode(expiryTime)}"));
+        }
+
+        [Test]
+        public void BlobUriBuilder_SasInvalidStartExpiryTimeFormat()
+        {
+            // Arrange
+            string startTime = "2020-10-27T12Z";
+            string expiryTime = "2020-10-28T13Z";
+            Uri initialUri = new Uri($"https://account.blob.core.windows.net/container/blob?sv=2020-02-10&st={WebUtility.UrlEncode(startTime)}&se={WebUtility.UrlEncode(expiryTime)}&sr=b&sp=racwd&sig=jQetX8odiJoZ7Yo0X8vWgh%2FMqRv9WE3GU%2Fr%2BLNMK3GU%3D");
+
+            // Act
+            try
+            {
+                new BlobUriBuilder(initialUri);
+            }
+            catch (FormatException e)
+            {
+                Assert.IsTrue(e.Message.Contains("was not recognized as a valid DateTime."));
+            }
         }
     }
 }

@@ -25,11 +25,15 @@
         "authorizationApiVersion": "2018-09-01-preview",
         "blobDataContributorRoleId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
         "contributorRoleId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+        "blobDataOwnerRoleId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/b7e6dc6d-f1e8-4753-8033-0f276bb0955b')]",
         "primaryAccountName": "[concat(parameters('baseName'), 'prim')]",
         "secondaryAccountName": "[concat(parameters('baseName'), 'sec')]",
         "premiumAccountName": "[concat(parameters('baseName'), 'prem')]",
         "dataLakeAccountName": "[concat(parameters('baseName'), 'dtlk')]",
         "softDeleteAccountName": "[concat(parameters('baseName'), 'sftdl')]",
+        "premiumFileAccountName": "[concat(parameters('baseName'), 'pfile')]",
+        "webjobsPrimaryAccountName": "[concat(parameters('baseName'), 'wjprim')]",
+        "webjobsSecondaryAccountName": "[concat(parameters('baseName'), 'wjsec')]",
         "keyvaultName": "[concat(parameters('baseName'), 'kvlt')]",
         "azureKeyVaultUrl": "[format('https://{0}.vault.azure.net', variables('keyvaultName'))]",
         "location": "[resourceGroup().location]",
@@ -77,6 +81,18 @@
             }
         },
         {
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "[variables('authorizationApiVersion')]",
+            "name": "[guid(concat('blobDataOwnerRoleId', variables('primaryAccountName')))]",
+            "dependsOn": [
+                "[variables('primaryAccountName')]"
+            ],
+            "properties": {
+                "roleDefinitionId": "[variables('blobDataOwnerRoleId')]",
+                "principalId": "[parameters('testApplicationOid')]"
+            }
+        },
+        {
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "[variables('mgmtApiVersion')]",
             "name": "[variables('primaryAccountName')]",
@@ -98,7 +114,15 @@
             "apiVersion": "[variables('mgmtApiVersion')]",
             "name": "[concat(variables('primaryAccountName'), '/default')]",
             "properties": {
-                "isVersioningEnabled": true
+                "isVersioningEnabled": true,
+                "lastAccessTimeTrackingPolicy": {
+                    "enable": true,
+                    "name": "AccessTimeTracking",
+                    "trackingGranularityInDays": 1,
+                    "blobType": [
+                        "blockBlob"
+                    ]
+                }
             },
             "dependsOn": [
                 "[variables('primaryAccountName')]"
@@ -181,6 +205,10 @@
                 "deleteRetentionPolicy": {
                       "enabled": true,
                       "days": 1
+                },
+                "containerDeleteRetentionPolicy": {
+                    "enabled": true,
+                    "days": 1
                 }
             },
             "dependsOn": [
@@ -200,6 +228,57 @@
             "dependsOn": [
                 "[variables('softDeleteAccountName')]"
             ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "[variables('mgmtApiVersion')]",
+            "name": "[variables('premiumFileAccountName')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Premium_LRS",
+                "tier": "Premium"
+            },
+            "kind": "FileStorage",
+            "properties": {
+                "networkAcls": "[variables('networkAcls')]",
+                "supportsHttpsTrafficOnly": true,
+                "encryption": "[variables('encryption')]",
+                "accessTier": "Hot"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "[variables('mgmtApiVersion')]",
+            "name": "[variables('webjobsPrimaryAccountName')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard_RAGRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": "[variables('networkAcls')]",
+                "supportsHttpsTrafficOnly": true,
+                "encryption": "[variables('encryption')]",
+                "accessTier": "Hot"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "[variables('mgmtApiVersion')]",
+            "name": "[variables('webjobsSecondaryAccountName')]",
+            "location": "[variables('location')]",
+            "sku": {
+                "name": "Standard_RAGRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "networkAcls": "[variables('networkAcls')]",
+                "supportsHttpsTrafficOnly": true,
+                "encryption": "[variables('encryption')]",
+                "accessTier": "Hot"
+            }
         },
         {
             "type": "Microsoft.KeyVault/vaults",
@@ -321,6 +400,22 @@
     "SOFT_DELETE_ACCOUNT_KEY": {
       "type": "string",
       "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('softDeleteAccountName')), variables('mgmtApiVersion')).keys[0].value]"
+    },
+    "PREMIUM_FILE_STORAGE_ACCOUNT_NAME": {
+      "type": "string",
+      "value": "[variables('premiumFileAccountName')]"
+    },
+    "PREMIUM_FILE_STORAGE_ACCOUNT_KEY": {
+      "type": "string",
+      "value": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('premiumFileAccountName')), variables('mgmtApiVersion')).keys[0].value]"
+    },
+    "AZUREWEBJOBSSTORAGE": {
+      "type": "string",
+      "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('webjobsPrimaryAccountName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('webjobsPrimaryAccountName')), variables('mgmtApiVersion')).keys[0].value,';EndpointSuffix=core.windows.net')]"
+    },
+    "AZUREWEBJOBSSECONDARYSTORAGE": {
+      "type": "string",
+      "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('webjobsSecondaryAccountName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('webjobsSecondaryAccountName')), variables('mgmtApiVersion')).keys[0].value,';EndpointSuffix=core.windows.net')]"
     },
     "KEYVAULT_URI":{
       "type": "string",

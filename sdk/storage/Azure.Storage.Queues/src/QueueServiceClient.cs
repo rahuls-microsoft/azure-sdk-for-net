@@ -11,6 +11,7 @@ using Azure.Core.Pipeline;
 using Azure.Storage.Cryptography;
 using Azure.Storage.Queues.Models;
 using Azure.Storage.Queues.Specialized;
+using Azure.Storage.Sas;
 
 namespace Azure.Storage.Queues
 {
@@ -71,6 +72,10 @@ namespace Azure.Storage.Queues
         /// </summary>
         internal virtual ClientSideEncryptionOptions ClientSideEncryption => _clientSideEncryption;
 
+        private readonly QueueMessageEncoding _messageEncoding;
+
+        internal virtual QueueMessageEncoding MessageEncoding => _messageEncoding;
+
         /// <summary>
         /// The Storage account name corresponding to the service client.
         /// </summary>
@@ -91,6 +96,17 @@ namespace Azure.Storage.Queues
             }
         }
 
+        /// <summary>
+        /// The <see cref="StorageSharedKeyCredential"/> used to authenticate and generate SAS
+        /// </summary>
+        private StorageSharedKeyCredential _storageSharedKeyCredential;
+
+        /// <summary>
+        /// Determines whether the client is able to generate a SAS.
+        /// If the client is authenticated with a <see cref="StorageSharedKeyCredential"/>.
+        /// </summary>
+        public bool CanGenerateAccountSasUri => _storageSharedKeyCredential != null;
+
         #region ctors
         /// <summary>
         /// Initializes a new instance of the <see cref="QueueServiceClient"/>
@@ -109,7 +125,9 @@ namespace Azure.Storage.Queues
         /// required for your application to access data in an Azure Storage
         /// account at runtime.
         ///
-        /// For more information, <see href="https://docs.microsoft.com/azure/storage/common/storage-configure-connection-string">Configure Azure Storage connection strings</see>
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/azure/storage/common/storage-configure-connection-string">
+        /// Configure Azure Storage connection strings</see>.
         /// </param>
         public QueueServiceClient(string connectionString)
             : this(connectionString, null)
@@ -125,7 +143,9 @@ namespace Azure.Storage.Queues
         /// required for your application to access data in an Azure Storage
         /// account at runtime.
         ///
-        /// For more information, <see href="https://docs.microsoft.com/azure/storage/common/storage-configure-connection-string">Configure Azure Storage connection strings</see>
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/azure/storage/common/storage-configure-connection-string">
+        /// Configure Azure Storage connection strings</see>.
         /// </param>
         /// <param name="options">
         /// Optional client options that define the transport pipeline
@@ -141,6 +161,8 @@ namespace Azure.Storage.Queues
             _version = options.Version;
             _clientDiagnostics = new ClientDiagnostics(options);
             _clientSideEncryption = QueueClientSideEncryptionOptions.CloneFrom(options._clientSideEncryptionOptions);
+            _storageSharedKeyCredential = conn.Credentials as StorageSharedKeyCredential;
+            _messageEncoding = options.MessageEncoding;
         }
 
         /// <summary>
@@ -157,7 +179,7 @@ namespace Azure.Storage.Queues
         /// every request.
         /// </param>
         public QueueServiceClient(Uri serviceUri, QueueClientOptions options = default)
-            : this(serviceUri, (HttpPipelinePolicy)null, options)
+            : this(serviceUri, (HttpPipelinePolicy)null, options, null)
         {
         }
 
@@ -178,7 +200,7 @@ namespace Azure.Storage.Queues
         /// every request.
         /// </param>
         public QueueServiceClient(Uri serviceUri, StorageSharedKeyCredential credential, QueueClientOptions options = default)
-            : this(serviceUri, credential.AsPolicy(), options)
+            : this(serviceUri, credential.AsPolicy(), options, credential)
         {
         }
 
@@ -199,7 +221,7 @@ namespace Azure.Storage.Queues
         /// every request.
         /// </param>
         public QueueServiceClient(Uri serviceUri, TokenCredential credential, QueueClientOptions options = default)
-            : this(serviceUri, credential.AsPolicy(), options)
+            : this(serviceUri, credential.AsPolicy(), options, null)
         {
             Errors.VerifyHttpsTokenAuth(serviceUri);
         }
@@ -220,7 +242,14 @@ namespace Azure.Storage.Queues
         /// policies for authentication, retries, etc., that are applied to
         /// every request.
         /// </param>
-        internal QueueServiceClient(Uri serviceUri, HttpPipelinePolicy authentication, QueueClientOptions options)
+        /// <param name="storageSharedKeyCredential">
+        /// The shared key credential used to sign requests.
+        /// </param>
+        internal QueueServiceClient(
+            Uri serviceUri,
+            HttpPipelinePolicy authentication,
+            QueueClientOptions options,
+            StorageSharedKeyCredential storageSharedKeyCredential)
         {
             _uri = serviceUri;
             options ??= new QueueClientOptions();
@@ -228,6 +257,8 @@ namespace Azure.Storage.Queues
             _version = options.Version;
             _clientDiagnostics = new ClientDiagnostics(options);
             _clientSideEncryption = QueueClientSideEncryptionOptions.CloneFrom(options._clientSideEncryptionOptions);
+            _storageSharedKeyCredential = storageSharedKeyCredential;
+            _messageEncoding = options.MessageEncoding;
         }
         #endregion ctors
 
@@ -244,7 +275,7 @@ namespace Azure.Storage.Queues
         /// A <see cref="QueueClient"/> for the desired queue.
         /// </returns>
         public virtual QueueClient GetQueueClient(string queueName)
-            => new QueueClient(Uri.AppendToPath(queueName), Pipeline, Version, ClientDiagnostics, ClientSideEncryption);
+            => new QueueClient(Uri.AppendToPath(queueName), Pipeline, Version, ClientDiagnostics, ClientSideEncryption, MessageEncoding);
 
         #region GetQueues
         /// <summary>
@@ -253,7 +284,9 @@ namespace Azure.Storage.Queues
         /// queues may make multiple requests to the service while fetching
         /// all the values.  Queue names are returned in lexicographic order.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/list-queues1">List Queues</see>
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/list-queues1">
+        /// List Queues</see>.
         /// </summary>
         /// <param name="traits">
         /// Optional trait options for shaping the queues.
@@ -280,7 +313,9 @@ namespace Azure.Storage.Queues
         /// queues may make multiple requests to the service while fetching
         /// all the values.  Queue names are returned in lexicographic order.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/list-queues1">List Queues</see>
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/list-queues1">
+        /// List Queues</see>.
         /// </summary>
         /// <param name="traits">
         /// Optional trait options for shaping the queues.
@@ -307,7 +342,10 @@ namespace Azure.Storage.Queues
 
         /// <summary>
         /// Returns a single segment of containers starting from the specified marker.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/list-queues1">List Queues</see>
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/list-queues1">
+        /// List Queues</see>.
         /// </summary>
         /// <param name="marker">
         /// Marker from the previous request.
@@ -393,7 +431,10 @@ namespace Azure.Storage.Queues
         #region GetProperties
         /// <summary>
         /// Gets the properties of the queue service.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-properties">Get Queue Service Properties</see>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-properties">
+        /// Get Queue Service Properties</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// <see cref="CancellationToken"/>
@@ -410,7 +451,10 @@ namespace Azure.Storage.Queues
 
         /// <summary>
         /// Gets the properties of the queue service.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-properties">Get Queue Service Properties</see>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-properties">
+        /// Get Queue Service Properties</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// <see cref="CancellationToken"/>
@@ -427,7 +471,10 @@ namespace Azure.Storage.Queues
 
         /// <summary>
         /// Gets the properties of the queue service.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-properties">Get Queue Service Properties</see>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-properties">
+        /// Get Queue Service Properties</see>.
         /// </summary>
         /// <param name="async">
         /// Whether to invoke the operation asynchronously.
@@ -455,6 +502,7 @@ namespace Azure.Storage.Queues
                         Uri,
                         version: Version.ToVersionString(),
                         async: async,
+                        operationName: $"{nameof(QueueServiceClient)}.{nameof(GetProperties)}",
                         cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -474,7 +522,10 @@ namespace Azure.Storage.Queues
         #region SetProperties
         /// <summary>
         /// Sets the properties of the queue service.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-queue-service-properties">Set Queue Service Properties</see>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-queue-service-properties">
+        /// Set Queue Service Properties</see>.
         /// </summary>
         /// <param name="properties">
         /// <see cref="QueueServiceProperties"/>
@@ -496,7 +547,9 @@ namespace Azure.Storage.Queues
 
         /// <summary>
         /// Sets the properties of the queue service.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-queue-service-properties">Set Queue Service Properties</see>.
+        ///
+        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-queue-service-properties">
+        /// Set Queue Service Properties</see>.
         /// </summary>
         /// <param name="properties">
         /// <see cref="QueueServiceProperties"/>
@@ -518,7 +571,10 @@ namespace Azure.Storage.Queues
 
         /// <summary>
         /// Sets the properties of the queue service.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/set-queue-service-properties">Set Queue Service Properties</see>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/set-queue-service-properties">
+        /// Set Queue Service Properties</see>.
         /// </summary>
         /// <param name="properties">
         /// <see cref="QueueServiceProperties"/>
@@ -553,6 +609,7 @@ namespace Azure.Storage.Queues
                         properties: properties,
                         version: Version.ToVersionString(),
                         async: async,
+                        operationName: $"{nameof(QueueServiceClient)}.{nameof(SetProperties)}",
                         cancellationToken: cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -574,7 +631,10 @@ namespace Azure.Storage.Queues
         /// Retrieves statistics related to replication for the Blob service. It is
         /// only available on the secondary location endpoint when read-access
         /// geo-redundant replication is enabled for the storage account.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-stats">Get Queue Service Stats</see>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-stats">
+        /// Get Queue Service Stats</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// <see cref="CancellationToken"/>
@@ -593,7 +653,10 @@ namespace Azure.Storage.Queues
         /// Retrieves statistics related to replication for the Blob service. It is
         /// only available on the secondary location endpoint when read-access
         /// geo-redundant replication is enabled for the storage account.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-stats">Get Queue Service Stats</see>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-stats">
+        /// Get Queue Service Stats</see>.
         /// </summary>
         /// <param name="cancellationToken">
         /// <see cref="CancellationToken"/>
@@ -612,7 +675,10 @@ namespace Azure.Storage.Queues
         /// Retrieves statistics related to replication for the Blob service. It is
         /// only available on the secondary location endpoint when read-access
         /// geo-redundant replication is enabled for the storage account.
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-stats">Get Queue Service Stats</see>.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/get-queue-service-stats">
+        /// Get Queue Service Stats</see>.
         /// </summary>
         /// <param name="async">
         /// Whether to invoke the operation asynchronously.
@@ -660,7 +726,9 @@ namespace Azure.Storage.Queues
         /// <summary>
         /// Creates a queue.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/create-queue4">Create Queue</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/create-queue4">
+        /// Create Queue</see>.
         /// </summary>
         /// <param name="queueName">
         /// The name of the queue to create.
@@ -688,7 +756,9 @@ namespace Azure.Storage.Queues
         /// <summary>
         /// Creates a queue.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/create-queue4">Create Queue</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/create-queue4">
+        /// Create Queue</see>.
         /// </summary>
         /// <param name="queueName">
         /// The name of the queue to create.
@@ -718,7 +788,9 @@ namespace Azure.Storage.Queues
         /// <summary>
         /// Deletes a queue.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/delete-queue3">Delete Queue</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/delete-queue3">
+        /// Delete Queue</see>.
         /// </summary>
         /// <param name="queueName">
         /// The name of the queue to delete.
@@ -738,7 +810,9 @@ namespace Azure.Storage.Queues
         /// <summary>
         /// Deletes a queue.
         ///
-        /// For more information, see <see href="https://docs.microsoft.com/rest/api/storageservices/delete-queue3">Delete Queue</see>.
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/rest/api/storageservices/delete-queue3">
+        /// Delete Queue</see>.
         /// </summary>
         /// <param name="queueName">
         /// The name of the queue to delete.
@@ -757,5 +831,80 @@ namespace Azure.Storage.Queues
                 .DeleteAsync(cancellationToken)
                 .ConfigureAwait(false);
         #endregion DeleteQueue
+
+        #region GenerateSas
+        /// <summary>
+        /// The <see cref="GenerateAccountSasUri(AccountSasPermissions, DateTimeOffset, AccountSasResourceTypes)"/>
+        /// returns a <see cref="Uri"/> that generates a Queue
+        /// Account Shared Access Signature based on the
+        /// Client properties and parameters passed. The SAS is signed by the
+        /// shared key credential of the client.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas">
+        /// Constructing a Service SAS</see>
+        /// </summary>
+        /// <param name="permissions">
+        /// Required. Specifies the list of permissions to be associated with the SAS.
+        /// See <see cref="AccountSasPermissions"/>.
+        /// </param>
+        /// <param name="expiresOn">
+        /// Required. The time at which the shared access signature becomes invalid.
+        /// </param>
+        /// <param name="resourceTypes">
+        /// Specifies the resource types associated with the shared access signature.
+        /// The user is restricted to operations on the specified resources.
+        /// See <see cref="AccountSasResourceTypes"/>.
+        /// </param>
+        /// <returns>
+        /// A <see cref="Uri"/> containing the SAS Uri.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="RequestFailedException"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        public Uri GenerateAccountSasUri(
+            AccountSasPermissions permissions,
+            DateTimeOffset expiresOn,
+            AccountSasResourceTypes resourceTypes) =>
+            GenerateAccountSasUri(new AccountSasBuilder(
+                permissions,
+                expiresOn,
+                AccountSasServices.Queues,
+                resourceTypes));
+
+        /// <summary>
+        /// The <see cref="GenerateAccountSasUri(AccountSasBuilder)"/> returns a Uri that
+        /// generates a Service SAS based on the Client properties and builder passed.
+        ///
+        /// For more information, see
+        /// <see href="https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas">
+        /// Constructing a Service SAS</see>
+        /// </summary>
+        /// <param name="builder">
+        /// Used to generate a Shared Access Signature (SAS).
+        /// </param>
+        /// <returns>
+        /// A <see cref="Uri"/> containing the SAS Uri.
+        /// </returns>
+        /// <remarks>
+        /// A <see cref="Exception"/> will be thrown if
+        /// a failure occurs.
+        /// </remarks>
+        public Uri GenerateAccountSasUri(AccountSasBuilder builder)
+        {
+            builder = builder ?? throw Errors.ArgumentNull(nameof(builder));
+            if (!builder.Services.HasFlag(AccountSasServices.Queues))
+            {
+                throw Errors.SasServiceNotMatching(
+                    nameof(builder.Services),
+                    nameof(builder),
+                    nameof(AccountSasServices.Queues));
+            }
+            QueueUriBuilder sasUri = new QueueUriBuilder(Uri);
+            sasUri.Query = builder.ToSasQueryParameters(_storageSharedKeyCredential).ToString();
+            return sasUri.ToUri();
+        }
+        #endregion
     }
 }

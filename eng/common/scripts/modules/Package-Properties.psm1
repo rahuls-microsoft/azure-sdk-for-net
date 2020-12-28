@@ -1,3 +1,4 @@
+# This Files has been retired
 # Helper functions for retireving useful information from azure-sdk-for-* repo
 # Example Use : Import-Module .\eng\common\scripts\modules
 class PackageProps
@@ -63,12 +64,6 @@ class PackageProps
         $this.pkgGroup = $pkgGroup
     }
 }
-
-$ProgressPreference = "SilentlyContinue"
-
-
-Register-PSRepository -Default -ErrorAction:SilentlyContinue
-Install-Module -Name powershell-yaml -RequiredVersion 0.4.1 -Force -Scope CurrentUser
 
 function Extract-PkgProps ($pkgPath, $serviceName, $pkgName, $lang)
 {
@@ -261,6 +256,9 @@ function Operate-OnPackages ($activePkgList, $serviceName, $language, $repoRoot,
 
 function Get-PkgListFromYml ($ciYmlPath)
 {
+    $ProgressPreference = "SilentlyContinue"
+    Register-PSRepository -Default -ErrorAction:SilentlyContinue
+    Install-Module -Name powershell-yaml -RequiredVersion 0.4.1 -Force -Scope CurrentUser
     $ciYmlContent = Get-Content $ciYmlPath -Raw
     $ciYmlObj = ConvertFrom-Yaml $ciYmlContent -Ordered
     if ($ciYmlObj.Contains("stages"))
