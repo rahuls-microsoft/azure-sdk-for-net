@@ -164,7 +164,9 @@ namespace Reservations.Tests.ScenarioTests
                 );
             }
         }
-
+        #region AutoQuotaIncrease Tests.
+        // This API has been removed from GA version. It will be released in mid 2021. Commenting out the test for this release.
+        /*
         [Fact]
         public void Test_GetAQMProperties()
         {
@@ -207,10 +209,11 @@ namespace Reservations.Tests.ScenarioTests
             }
             catch (CloudException ex)
             {
-                Assert.False(false, $"Not excpected {ex.ToString()}");
+                Assert.False(false, $"Not expected {ex.ToString()}");
             }
         }
-
+        */
+        #endregion
         #endregion
         #region Neagtive Test Cases
         [Fact]
