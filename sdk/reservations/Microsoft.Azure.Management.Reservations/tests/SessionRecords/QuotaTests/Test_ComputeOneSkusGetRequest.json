@@ -7,7 +7,7 @@
       "RequestBody": "",
       "RequestHeaders": {
         "x-ms-client-request-id": [
-          "36b0b405-4802-4384-adbe-8b2007a0df25"
+          "b9d49269-19c9-408d-ae6f-fd3d02809fd4"
         ],
         "accept-language": [
           "en-US"
@@ -24,7 +24,7 @@
           "no-store, must-revalidate, no-cache"
         ],
         "Date": [
-          "Tue, 26 Jan 2021 00:20:28 GMT"
+          "Wed, 27 Jan 2021 00:10:30 GMT"
         ],
         "Server": [
           "Kestrel"
@@ -39,19 +39,19 @@
           "nosniff"
         ],
         "MS-RequestId": [
-          "hxp9MDNFNkSIEYBAkYlhFw.0"
+          "mEZnlbQxaEWWCKKZL9JSCw.0"
         ],
         "x-ms-ratelimit-remaining-subscription-reads": [
-          "11997"
+          "11999"
         ],
         "x-ms-request-id": [
-          "363f9752-afe2-4697-aaef-a6b2054e1271"
+          "9ca6006c-f76e-4891-8e6f-8820e65b543e"
         ],
         "x-ms-correlation-request-id": [
-          "363f9752-afe2-4697-aaef-a6b2054e1271"
+          "9ca6006c-f76e-4891-8e6f-8820e65b543e"
         ],
         "x-ms-routing-request-id": [
-          "WESTUS2:20210126T002029Z:363f9752-afe2-4697-aaef-a6b2054e1271"
+          "WESTUS2:20210127T001031Z:9ca6006c-f76e-4891-8e6f-8820e65b543e"
         ],
         "Content-Length": [
           "404"
@@ -60,7 +60,7 @@
           "application/json"
         ]
       },
-      "ResponseBody": "{\r\n  \"id\": \"/subscriptions/9f6cce51-6baf-4de5-a3c4-6f58b85315b9/providers/Microsoft.Capacity/resourceProviders/Microsoft.Compute/locations/westus/serviceLimits/standardFSv2Family\",\r\n  \"name\": \"standardFSv2Family\",\r\n  \"properties\": {\r\n    \"currentValue\": 0,\r\n    \"limit\": 202,\r\n    \"name\": {\r\n      \"value\": \"standardFSv2Family\",\r\n      \"localizedValue\": \"Standard FSv2 Family vCPUs\"\r\n    },\r\n    \"properties\": {},\r\n    \"unit\": \"Count\"\r\n  },\r\n  \"type\": \"Microsoft.Capacity/ServiceLimits\"\r\n}",
+      "ResponseBody": "{\r\n  \"id\": \"/subscriptions/9f6cce51-6baf-4de5-a3c4-6f58b85315b9/providers/Microsoft.Capacity/resourceProviders/Microsoft.Compute/locations/westus/serviceLimits/standardFSv2Family\",\r\n  \"name\": \"standardFSv2Family\",\r\n  \"properties\": {\r\n    \"currentValue\": 0,\r\n    \"limit\": 205,\r\n    \"name\": {\r\n      \"value\": \"standardFSv2Family\",\r\n      \"localizedValue\": \"Standard FSv2 Family vCPUs\"\r\n    },\r\n    \"properties\": {},\r\n    \"unit\": \"Count\"\r\n  },\r\n  \"type\": \"Microsoft.Capacity/ServiceLimits\"\r\n}",
       "StatusCode": 200
     }
   ],

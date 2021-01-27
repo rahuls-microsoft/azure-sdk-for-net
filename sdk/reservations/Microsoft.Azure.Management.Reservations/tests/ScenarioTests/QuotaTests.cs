@@ -216,17 +216,28 @@ namespace Reservations.Tests.ScenarioTests
         #endregion
         #region Negative Test Cases
         [Fact]
-        public void Test_ComputeSkusPutRequestFailedDueToQuotaReduction()
+        public void Test_ComputeSkusPutRequestSuccess()
         {
             HttpMockServer.RecordsDirectory = GetSessionsDirectoryPath();
-            var newQuotaLimit = new CurrentQuotaLimitBase()
-            {
-                Properties = new QuotaProperties()
+            CurrentQuotaLimitBase quota;
+
+           
+                using (MockContext context = MockContext.Start(this.GetType()))
                 {
-                    Limit = 2,
-                    Name = new ResourceName() { Value = SKUName }
+                    var reservationsClient = ReservationsTestUtilities.GetAzureReservationAPIClient(
+                        context,
+                        new RecordedDelegatingHandler { StatusCodeToReturn = HttpStatusCode.OK });
+
+                    quota = reservationsClient.Quota.Get(QuotaSubscriptionId, ComputeProviderId, LocationWUS, SKUName);
+
+                    Assert.True(quota.Properties.Limit != null &&
+                        quota.Properties.Name != null &&
+                        quota.Properties.CurrentValue != null
+                    );
                 }
-            };
+               
+            var newQuotaLimit = quota;
+            newQuotaLimit.Properties.Limit = quota.Properties.Limit + 1;
 
             try
             {
@@ -234,15 +245,17 @@ namespace Reservations.Tests.ScenarioTests
                 {
                     var reservationsClient = ReservationsTestUtilities.GetAzureReservationAPIClient(
                         context,
-                        new RecordedDelegatingHandler { StatusCodeToReturn = HttpStatusCode.Created });
+                        new RecordedDelegatingHandler { StatusCodeToReturn = HttpStatusCode.OK });
                     var quotaResponse = reservationsClient.Quota.CreateOrUpdate(QuotaSubscriptionId, ComputeProviderId, LocationWUS, newQuotaLimit.Properties.Name.Value, newQuotaLimit);
                     System.Diagnostics.Trace.TraceInformation($"Response: {quotaResponse}");
+                    var response = quotaResponse as QuotaRequestSubmitResponse;
+                    Assert.True(response?.Id != null);
                 }
             }
             catch (CloudException ex)
             {
                 System.Diagnostics.Trace.TraceInformation($"Exception: {ex}");
-                Assert.Contains("QuotaReductionNotSupported", ex.ToString());
+               // Assert.Contains("QuotaReductionNotSupported", ex.ToString());
             }
         }
         
@@ -265,7 +278,7 @@ namespace Reservations.Tests.ScenarioTests
                 {
                     var reservationsClient = ReservationsTestUtilities.GetAzureReservationAPIClient(
                         context,
-                        new RecordedDelegatingHandler { StatusCodeToReturn = HttpStatusCode.Created });
+                        new RecordedDelegatingHandler { StatusCodeToReturn = HttpStatusCode.OK });
                     var quotaResponse = reservationsClient.Quota.Update(QuotaSubscriptionId, ComputeProviderId, LocationWUS, newQuotaLimit.Properties.Name.Value, newQuotaLimit);
                     System.Diagnostics.Trace.TraceInformation($"Response: {quotaResponse}");
                 }
