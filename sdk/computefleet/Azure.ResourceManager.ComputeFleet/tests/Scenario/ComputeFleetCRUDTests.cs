@@ -39,25 +39,32 @@ namespace Azure.ResourceManager.ComputeFleet.Tests
             var locationProfileList = new List<LocationProfile>();
 
             /*
-             ComputeFleetVmProfile(ComputeFleetVmssOSProfile osProfile, ComputeFleetVmssStorageProfile storageProfile, ComputeFleetVmssNetworkProfile networkProfile, ComputeFleetSecurityProfile securityProfile, ComputeFleetDiagnosticsProfile diagnosticsProfile, ComputeFleetVmssExtensionProfile extensionProfile, string licenseType, ComputeFleetScheduledEventsProfile scheduledEventsProfile, string userData, CapacityReservationProfile capacityReservation, ComputeFleetApplicationProfile applicationProfile, ComputeFleetVmssHardwareProfile hardwareProfile, WritableSubResource serviceArtifactReference, ComputeFleetSecurityPostureReference securityPostureReference, DateTimeOffset? createdOn, IDictionary<string, BinaryData> serializedAdditionalRawData)
+             ComputeFleetVmProfile(ComputeFleetVmssOSProfile osProfile, ComputeFleetVmssStorageProfile storageProfile,
+            ComputeFleetVmssNetworkProfile networkProfile, ComputeFleetSecurityProfile securityProfile,
+            ComputeFleetDiagnosticsProfile diagnosticsProfile, ComputeFleetVmssExtensionProfile extensionProfile,
+            string licenseType, ComputeFleetScheduledEventsProfile scheduledEventsProfile, string userData,
+            CapacityReservationProfile capacityReservation, ComputeFleetApplicationProfile applicationProfile,
+            ComputeFleetVmssHardwareProfile hardwareProfile, WritableSubResource serviceArtifactReference,
+            ComputeFleetSecurityPostureReference securityPostureReference, DateTimeOffset? createdOn,
+            IDictionary<string, BinaryData> serializedAdditionalRawData)
              */
 
             ComputeFleetVmProfile baseVmProfile =  new ComputeFleetVmProfile(computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.OSProfile,
-                 computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.StorageProfile,
-                  computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.NetworkProfile,
-                 computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.SecurityProfile,
-                 computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.DiagnosticsProfile,
-                 computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.ExtensionProfile,
-                "None", //LicenseType
-                 computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.ScheduledEventsProfile,
-                 null, //userData
-                 computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.CapacityReservation,
-                 computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.ApplicationProfile,
-                 computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.HardwareProfile,
-                 null,
-                 null,
-                 null,
-                 null);
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.StorageProfile,
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.NetworkProfile,
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.SecurityProfile,
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.DiagnosticsProfile,
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.ExtensionProfile,
+               licenseType: "None", //LicenseType
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.ScheduledEventsProfile,
+               userData: null, //userData
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.CapacityReservation,
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.ApplicationProfile,
+               computeFleetData.Properties.ComputeProfile.BaseVirtualMachineProfile.HardwareProfile,
+               serviceArtifactReference: null,
+               securityPostureReference: null,
+               createdOn: null,
+               serializedAdditionalRawData: null);
 
             var locationProfile1 = new LocationProfile()
             {
@@ -65,28 +72,23 @@ namespace Azure.ResourceManager.ComputeFleet.Tests
                 VirtualMachineProfileOverride = baseVmProfile
             };
 
-            locationProfile1.VirtualMachineProfileOverride = null;
-
             var locationProfile2 = new LocationProfile()
             {
                 Location = "westus2",
                 VirtualMachineProfileOverride = baseVmProfile
             };
 
-            locationProfile2.VirtualMachineProfileOverride = null;
             var locationProfile3 = new LocationProfile()
             {
                 Location = "eastus2",
                 VirtualMachineProfileOverride = baseVmProfile
             };
-            locationProfile3.VirtualMachineProfileOverride = null;
 
             var locationProfile4 = new LocationProfile()
             {
                 Location = "westus3",
                 VirtualMachineProfileOverride = baseVmProfile
             };
-            locationProfile4.VirtualMachineProfileOverride = null;
 
             locationProfileList.Add(locationProfile1);
             locationProfileList.Add(locationProfile2);
